@@ -93,13 +93,13 @@ export default function IdeaDetail() {
             {isGate1Ready && (
               <div className="flex gap-6 mt-8">
                 <button
-                  onClick={async () => { await approveGate1(idea.id); load(); }}
+                  onClick={async () => { setError(""); await approveGate1(idea.id); load(); }}
                   className="text-sm text-gray-800 hover:text-black transition"
                 >
                   通过，开始生产 →
                 </button>
                 <button
-                  onClick={async () => { await rejectGate1(idea.id); load(); }}
+                  onClick={async () => { setError(""); await rejectGate1(idea.id); load(); }}
                   className="text-sm text-gray-400 hover:text-gray-600 transition"
                 >
                   驳回
@@ -142,6 +142,7 @@ export default function IdeaDetail() {
           </div>
           <button
             onClick={async () => {
+              setError("");
               if (selectedTypes.length === 0) return;
               try {
                 await produceContent(idea.id, selectedTypes);
@@ -207,7 +208,7 @@ export default function IdeaDetail() {
                 <h3 className="text-xs text-gray-400">公众号长文</h3>
                 {!isPublished && (
                   <button
-                    onClick={async () => { await rejectReview(idea.id, "gzh"); load(); }}
+                    onClick={async () => { setError(""); await rejectReview(idea.id, "gzh"); load(); }}
                     className="text-xs text-gray-400 hover:text-red-500 transition"
                   >
                     重做
@@ -228,7 +229,7 @@ export default function IdeaDetail() {
                 <h3 className="text-xs text-gray-400">小红书短文</h3>
                 {!isPublished && (
                   <button
-                    onClick={async () => { await rejectReview(idea.id, "xhs"); load(); }}
+                    onClick={async () => { setError(""); await rejectReview(idea.id, "xhs"); load(); }}
                     className="text-xs text-gray-400 hover:text-red-500 transition"
                   >
                     重做
@@ -264,7 +265,7 @@ export default function IdeaDetail() {
                   </button>
                   {!isPublished && (
                     <button
-                      onClick={async () => { await rejectReview(idea.id, "video"); load(); }}
+                      onClick={async () => { setError(""); await rejectReview(idea.id, "video"); load(); }}
                       className="text-xs text-gray-400 hover:text-red-500 transition"
                     >
                       重做
@@ -289,6 +290,7 @@ export default function IdeaDetail() {
             <div>
               <button
                 onClick={async () => {
+                  setError("");
                   await editReview(idea.id, {
                     content_gzh: editGzh,
                     content_xhs: editXhs,
@@ -311,7 +313,7 @@ export default function IdeaDetail() {
         <section className="mb-16">
           <h2 className="text-xs text-gray-400 tracking-wider mb-6">发布</h2>
           <button
-            onClick={async () => { await markPublished(idea.id); load(); }}
+            onClick={async () => { setError(""); await markPublished(idea.id); load(); }}
             className="text-sm text-gray-800 hover:text-black transition"
           >
             标记为已发布 →
