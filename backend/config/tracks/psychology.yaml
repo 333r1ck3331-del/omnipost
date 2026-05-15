@@ -1,0 +1,45 @@
+# 心理赛道配置
+# 后续新增赛道：复制此文件，修改 track_name 和 keywords
+
+track_name: psychology
+track_display: "心理学+社会学+时事"
+
+# 内容监控关键词
+keywords:
+  - 原生家庭
+  - 亲密关系
+  - 焦虑
+  - 抑郁
+  - 依恋理论
+  - MBTI
+  - 情绪管理
+  - 认知偏差
+  - 自我成长
+  - 边界感
+  - 讨好型人格
+  - 回避型依恋
+  - CPTSD
+  - 正念
+  - 内耗
+
+# 可用语调（从 prompts/tones/ 目录选择）
+available_tones:
+  - gentle_comfort    # 温柔抚慰
+  - clear_empathy     # 清醒共情
+  - social_observe    # 社会观察
+  - psych_science     # 心理科普
+
+# 目标平台
+platforms:
+  - douyin
+  - xiaohongshu
+  - gongzhonghao
+
+# 热点监控源（Phase 3 启用）
+hot_sources:
+  - type: zhihu
+    topic: 心理学
+  - type: weibo
+    keyword: 心理
+  - type: bilibili
+    zone: 知识-心理

@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OmniPost Content Package",
+  "description": "从留白 (liubai) 继承的完整内容包输出结构",
+  "type": "object",
+  "required": ["score", "strategy", "evidence_pool", "titles", "scripts", "distribution"],
+  "properties": {
+    "score": {
+      "type": "object",
+      "required": ["overall", "verdict"],
+      "properties": {
+        "overall": { "type": "integer", "minimum": 0, "maximum": 100, "description": "综合评分" },
+        "verdict": { "type": "string", "description": "一句话判断，如「差异化空间充足，值得做」" },
+        "knowledge_density": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "plus": { "type": "array", "items": { "type": "string" }, "description": "加分点" },
+            "minus": { "type": "array", "items": { "type": "string" }, "description": "扣分点" }
+          }
+        },
+        "emotional_concreteness": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "plus": { "type": "array", "items": { "type": "string" } },
+            "minus": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "ai_trace": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "越低越好（低=AI痕迹少）" },
+            "detected_patterns": { "type": "array", "items": { "type": "string" }, "description": "发现的AI痕迹模式" },
+            "verdict": { "type": "string", "enum": ["轻微", "中度", "严重"] }
+          }
+        },
+        "advice": { "type": "string", "description": "改进建议" }
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "required": ["track", "audience", "platform_fit"],
+      "properties": {
+        "track": { "type": "string", "description": "赛道分类" },
+        "audience": { "type": "string", "description": "受众画像" },
+        "platform_fit": { "type": "string", "description": "最适合的主战场" },
+        "core_emotion": { "type": "string", "description": "核心情绪锚点" },
+        "hook_angle": { "type": "string", "description": "切入角度" },
+        "best_time": { "type": "string", "description": "最佳发布时段建议" }
+      }
+    },
+    "evidence_pool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "title", "source", "detail", "usage"],
+        "properties": {
+          "type": { "type": "string", "enum": ["心理学概念", "社会学研究", "历史典故", "文学作品", "真实案例", "经典实验", "电影场景"] },
+          "title": { "type": "string", "description": "具体名称" },
+          "source": { "type": "string", "description": "提出者+年代/出处" },
+          "detail": { "type": "string", "description": "详细说明，3-4句" },
+          "usage": { "type": "string", "description": "本次内容如何使用这个素材" }
+        }
+      }
+    },
+    "titles": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["type", "text"],
+        "properties": {
+          "type": { "type": "string", "enum": ["情绪共鸣型", "洞察金句型", "好奇引导型"] },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "required": ["douyin", "xiaohongshu", "gongzhonghao"],
+      "properties": {
+        "douyin": {
+          "type": "object",
+          "properties": {
+            "total_duration": { "type": "string", "example": "75秒" },
+            "music_mood": { "type": "string", "description": "配乐氛围" },
+            "shots": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["time", "visual", "narration", "subtitle"],
+                "properties": {
+                  "time": { "type": "string", "example": "0-3s" },
+                  "visual": { "type": "string", "description": "画面描述" },
+                  "narration": { "type": "string", "description": "口播文案" },
+                  "subtitle": { "type": "string", "description": "字幕文案" },
+                  "camera": { "type": "string", "description": "运镜方式" },
+                  "transition": { "type": "string", "description": "转场方式" }
+                }
+              }
+            },
+            "ending_hook": { "type": "string", "description": "结尾留白句" }
+          }
+        },
+        "xiaohongshu": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "cover_text": { "type": "string", "description": "封面大字，6-12字" },
+            "body": { "type": "string", "description": "正文，250-400字，用换行分段。必须织入evidence_pool中至少1个真实素材" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "cover_image_prompt": { "type": "string", "description": "封面图 AI 提示词" }
+          }
+        },
+        "gongzhonghao": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "subtitle": { "type": "string", "description": "副标题" },
+            "blocks": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["type", "content"],
+                    "properties": {
+                      "type": { "const": "text" },
+                      "content": { "type": "string", "description": "段落文字，必须织入证据" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["type", "position", "prompt"],
+                    "properties": {
+                      "type": { "const": "image_cue" },
+                      "position": { "type": "string", "description": "建议配图位置" },
+                      "prompt": { "type": "string", "description": "AI 配图提示词" }
+                    }
+                  }
+                ]
+              }
+            },
+            "ending": { "type": "string" },
+            "estimated_words": { "type": "string", "example": "约 1800 字" }
+          }
+        }
+      }
+    },
+    "visual_assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "purpose": { "type": "string", "description": "用途说明" },
+          "prompt": { "type": "string", "description": "AI 生成提示词（中文）" },
+          "negative": { "type": "string", "description": "避免的元素" },
+          "tool_suggest": { "type": "string", "description": "推荐工具" }
+        }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "properties": {
+        "audience_layers": {
+          "type": "object",
+          "properties": {
+            "core": { "type": "string", "description": "核心受众" },
+            "extend": { "type": "string", "description": "外延受众" },
+            "avoid": { "type": "string", "description": "应避开的人群" }
+          }
+        },
+        "best_publish": {
+          "type": "object",
+          "properties": {
+            "douyin": { "type": "string" },
+            "xiaohongshu": { "type": "string" },
+            "gongzhonghao": { "type": "string" }
+          }
+        },
+        "tags_douyin": { "type": "array", "items": { "type": "string" }, "minItems": 5 },
+        "tags_xiaohongshu": { "type": "array", "items": { "type": "string" }, "minItems": 7 },
+        "should_promote": { "type": "string", "description": "是否投流 + 理由 + 预算建议" },
+        "series_potential": { "type": "string", "description": "是否适合系列化 + 后续选题 2-3 个" },
+        "risk_warning": { "type": "string", "description": "潜在风险，无则填'无明显风险'" }
+      }
+    }
+  }
+}
