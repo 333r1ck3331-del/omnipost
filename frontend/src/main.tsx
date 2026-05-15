@@ -33,10 +33,7 @@ if (!root) {
     createRoot(root).render(
       <StrictMode>
         <ErrorBoundary>
-          <div style={{padding:50}}>
-            <h1 style={{color:'green'}}>✅ React is working</h1>
-            <App />
-          </div>
+          <App />
         </ErrorBoundary>
       </StrictMode>,
     )

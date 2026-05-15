@@ -118,7 +118,7 @@ async def produce_content(
     """Trigger content production for approved idea."""
     item = await _get_or_404(idea_id, db)
 
-    if item.status not in ("approved", "pending_review"):
+    if item.status not in ("approved", "pending_review", "completed"):
         raise HTTPException(400, "请先通过价值判断（门禁 1）")
 
     item.status = "in_production"
