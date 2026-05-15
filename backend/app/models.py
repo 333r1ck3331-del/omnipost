@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Integer, Text, DateTime, JSON
+from sqlalchemy import Column, String, Integer, Text, DateTime
 from sqlalchemy.dialects.sqlite import TEXT as SQLiteText
 
 from app.core.database import Base
@@ -28,19 +28,19 @@ class ContentItem(Base):
 
     # Gate 1 — value judgment
     gate1_score = Column(Integer, nullable=True)
-    gate1_result = Column(JSON, nullable=True)   # raw AI response
+    gate1_result = Column(Text, nullable=True)   # raw AI response (JSON string)
     gate1_passed = Column(Integer, default=0)
 
     # Production
-    selected_types = Column(JSON, nullable=True)  # e.g. ["gzh", "xhs", "video"]
+    selected_types = Column(Text, nullable=True)  # JSON: ["gzh", "xhs", "video"]
     content_gzh = Column(Text, nullable=True)
     content_xhs = Column(Text, nullable=True)
     content_video_script = Column(Text, nullable=True)
-    title_suggestions = Column(JSON, nullable=True)
-    production_raw = Column(JSON, nullable=True)  # raw AI response from production
-
+    title_suggestions = Column(Text, nullable=True)  # JSON array
+    production_raw = Column(Text, nullable=True)      # JSON object
+    final_content = Column(Text, nullable=True)       # JSON object
     # User edits
-    final_content = Column(JSON, nullable=True)
+    # final_content already defined above
 
     # Publish
     publish_url = Column(Text, nullable=True)
