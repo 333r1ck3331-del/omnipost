@@ -23,6 +23,9 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./omnipost.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
+# Search
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+
 # Paths — from app/core/config.py, go up 2 levels to backend/
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 PROMPTS_DIR = os.path.join(_BASE_DIR, "prompts")

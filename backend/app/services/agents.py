@@ -1,41 +1,71 @@
 """Agent orchestration — value judgment (Gate 1) and content production."""
 
 import json
+import logging
+
 from app.services.llm import call_llm, parse_json_response, LLMError
 from app.services.prompt_loader import (
     assemble_value_judge_prompt,
     assemble_content_production_prompt,
 )
+from app.services.search import search_competitors, format_search_results, SearchError
+
+logger = logging.getLogger(__name__)
 
 
 async def run_value_judge(idea: str, track: str = "psychology", tone: str = "gentle_comfort") -> dict:
     """Gate 1: Evaluate the idea's value.
 
+    1. Search for competing content via Tavily
+    2. Inject search results into the AI prompt
+    3. AI scores the idea with real market context
+
     Returns:
-        {"score": int, "details": dict, "token_usage": dict}
+        {"score": int, "details": dict, "token_usage": dict, "search_used": bool}
     """
-    prompt = assemble_value_judge_prompt(idea, track, tone)
+    # Step 1: Search for competitors
+    search_text = None
+    search_used = False
+    try:
+        query = f"{idea} {track}"
+        results = await search_competitors(query, max_results=5)
+        if results:
+            search_text = format_search_results(results)
+            search_used = True
+            logger.info(f"Tavily search: {len(results)} results for '{query}'")
+    except SearchError as e:
+        logger.warning(f"Tavily search skipped: {e}")
+    except Exception as e:
+        logger.error(f"Tavily search unexpected error: {e}")
+
+    # Step 2: Build prompt with search results
+    prompt = assemble_value_judge_prompt(idea, track, tone, search_results=search_text)
     system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
 
+    # Step 3: Call LLM
     result = await call_llm(prompt, system_prompt=system)
     raw = result["content"]
 
+    # Step 4: Parse
     try:
         data = parse_json_response(raw)
     except json.JSONDecodeError:
-        # If JSON parse fails, try a simpler extraction
         data = {"overall": 5, "verdict": "AI 返回格式异常，建议人工判断", "error": True}
 
-    # Extract score — the schema has "overall" at top level
     score = data.get("overall", data.get("score", 5))
     if isinstance(score, dict):
         score = 5
+    try:
+        score = int(score)
+    except (TypeError, ValueError):
+        score = 0
 
     return {
         "score": score,
         "details": data,
         "token_usage": result.get("usage"),
         "latency_ms": result.get("latency_ms"),
+        "search_used": search_used,
     }
 
 
@@ -75,7 +105,6 @@ async def run_content_production(
     if selected_types is None or "gzh" in selected_types:
         gzh = scripts.get("gongzhonghao", {})
         if gzh:
-            # Combine blocks into one string
             blocks = gzh.get("blocks", [])
             parts = []
             for b in blocks:
@@ -91,7 +120,6 @@ async def run_content_production(
     if selected_types is None or "video" in selected_types:
         douyin = scripts.get("douyin", {})
         if douyin:
-            # Combine shots into script text
             shots = douyin.get("shots", [])
             script_lines = []
             for s in shots:

@@ -58,24 +58,38 @@ def load_output_schema() -> dict:
         return json.load(f)
 
 
-def assemble_value_judge_prompt(idea: str, track: str = "psychology", tone: str = "gentle_comfort") -> str:
+def assemble_value_judge_prompt(
+    idea: str,
+    track: str = "psychology",
+    tone: str = "gentle_comfort",
+    search_results: str | None = None,
+) -> str:
     """Assemble the full prompt for value judgment (Gate 1).
 
-    Uses a lightweight version: system + rules + idea, asking for just the score section.
+    Args:
+        search_results: Pre-formatted search results string (from Tavily),
+                        or None if search failed.
     """
     schema = load_output_schema()
     score_schema = schema["properties"]["score"]
 
+    search_block = ""
+    if search_results:
+        search_block = f"""
+【竞品搜索结查】
+{search_results}
+"""
+
     return f"""你是中文资深内容研究员。请评估以下内容点子的价值。
 
 {load_rules()}
-
+{search_block}
 【用户的想法】
 {idea}
 
 【赛道】{track}
 
-请只输出 score 部分的 JSON（严格 JSON，不要 markdown 围栏）：
+请基于{"搜索结果和" if search_results else ""}你的专业知识，只输出 score 部分的 JSON（严格 JSON，不要 markdown 围栏）：
 {json.dumps(score_schema, ensure_ascii=False, indent=2)}
 """
 

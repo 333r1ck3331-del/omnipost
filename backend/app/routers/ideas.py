@@ -2,15 +2,15 @@
 
 import json
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.core.database import get_db
-from app.models import ContentItem  # QualityLog skipped for now
+from app.models import ContentItem
 from app.schemas import (
     IdeaCreate, ProduceRequest, ReviewEdit, ReviewReject, PublishAction,
-    IdeaSummary, IdeaDetail, Gate1Response, ProduceStatus,
+    IdeaSummary, IdeaDetail, IdeaListResponse, Gate1Response, ProduceStatus,
 )
 from app.services.agents import run_value_judge, run_content_production
 
@@ -33,12 +33,12 @@ async def create_idea(body: IdeaCreate, db: AsyncSession = Depends(get_db)):
     try:
         result = await run_value_judge(body.idea_text, body.track, body.tone)
         item.gate1_score = result["score"]
-        item.gate1_result = json.dumps(result["details"], ensure_ascii=False)
+        details = result.get("details")
+        if details is None:
+            item.gate1_result = json.dumps({"error": "AI evaluation failed"}, ensure_ascii=False)
+        else:
+            item.gate1_result = json.dumps(details, ensure_ascii=False)
         item.status = "pending_review"
-
-        # Log quality (skip for now — content_item_id needs commit first)
-        # qlog = QualityLog(...)
-        pass
     except Exception as e:
         logger.error(f"Gate 1 failed: {e}", exc_info=True)
         item.gate1_score = 0
@@ -51,15 +51,25 @@ async def create_idea(body: IdeaCreate, db: AsyncSession = Depends(get_db)):
     return _to_detail(item)
 
 
-@router.get("", response_model=list[IdeaSummary])
-async def list_ideas(status: str | None = None, db: AsyncSession = Depends(get_db)):
-    """List ideas, optionally filtered by status."""
-    q = select(ContentItem).order_by(ContentItem.created_at.desc())
+@router.get("", response_model=IdeaListResponse)
+async def list_ideas(
+    status: str | None = None,
+    limit: int = Query(20, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """List ideas, optionally filtered by status, with pagination."""
+    base = select(ContentItem)
     if status:
-        q = q.where(ContentItem.status == status)
+        base = base.where(ContentItem.status == status)
+
+    count_q = select(func.count()).select_from(base.subquery())
+    total = (await db.execute(count_q)).scalar_one()
+
+    q = base.order_by(ContentItem.created_at.desc()).limit(limit).offset(offset)
     result = await db.execute(q)
     items = result.scalars().all()
-    return [_to_summary(i) for i in items]
+    return IdeaListResponse(items=[_to_summary(i) for i in items], total=total, limit=limit, offset=offset)
 
 
 @router.get("/queue/review", response_model=list[IdeaSummary])
@@ -170,7 +180,7 @@ async def approve_review(idea_id: str, db: AsyncSession = Depends(get_db)):
     item = await _get_or_404(idea_id, db)
 
     # Save current content as final if not already set
-    if not item.final_content:
+    if item.final_content is None:
         item.final_content = json.dumps({
             "gzh": item.content_gzh,
             "xhs": item.content_xhs,
@@ -246,7 +256,7 @@ def _to_summary(item: ContentItem) -> IdeaSummary:
         track=item.track,
         tone=item.tone,
         gate1_score=item.gate1_score,
-        created_at=item.created_at,
+        created_at=item.created_at.isoformat() if item.created_at else "",
     )
 
 
@@ -277,6 +287,6 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
         final_content=_json(item.final_content),
         publish_url=item.publish_url,
         notes=item.notes,
-        created_at=item.created_at,
-        updated_at=item.updated_at,
+        created_at=item.created_at.isoformat() if item.created_at else "",
+        updated_at=item.updated_at.isoformat() if item.updated_at else "",
     )

@@ -1,4 +1,4 @@
-const API = "http://localhost:8000/api";
+const API = "/api";
 
 export interface Idea {
   id: string;
@@ -50,7 +50,7 @@ export async function createIdea(ideaText: string, track = "psychology", tone = 
   });
 }
 
-export async function listIdeas(status?: string): Promise<IdeaSummary[]> {
+export async function listIdeas(status?: string): Promise<{ items: IdeaSummary[]; total: number }> {
   const url = status ? `${API}/ideas?status=${status}` : `${API}/ideas`;
   return fetchJSON(url);
 }

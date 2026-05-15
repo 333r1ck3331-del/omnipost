@@ -58,6 +58,11 @@ class IdeaSummary(BaseModel):
         from_attributes = True
 
 
+class IdeaListResponse(BaseModel):
+    items: list[IdeaSummary]
+    total: int
+
+
 class IdeaDetail(BaseModel):
     id: str
     idea_text: str
@@ -65,7 +70,7 @@ class IdeaDetail(BaseModel):
     tone: str
     status: str
     gate1_score: Optional[int] = None
-    gate1_result: Optional[dict] = None
+    gate1_result: Optional[object] = None
     gate1_passed: int
     selected_types: Optional[list[str]] = None
     content_gzh: Optional[str] = None
@@ -80,6 +85,13 @@ class IdeaDetail(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class IdeaListResponse(BaseModel):
+    items: list[IdeaSummary]
+    total: int
+    limit: int
+    offset: int
 
 
 class Gate1Response(BaseModel):
