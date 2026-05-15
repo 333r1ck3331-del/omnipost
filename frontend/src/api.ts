@@ -55,6 +55,10 @@ export async function listIdeas(status?: string): Promise<{ items: IdeaSummary[]
   return fetchJSON(url);
 }
 
+export async function fetchReviewQueue(): Promise<IdeaSummary[]> {
+  return fetchJSON(`${API}/ideas/queue/review`);
+}
+
 export async function getIdea(id: string): Promise<Idea> {
   return fetchJSON(`${API}/ideas/${id}`);
 }

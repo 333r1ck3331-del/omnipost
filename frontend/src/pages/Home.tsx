@@ -88,7 +88,15 @@ export default function Home() {
       </div>
 
       <div>
-        <h2 className="text-xs text-gray-400 tracking-wider mb-6">全部内容</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xs text-gray-400 tracking-wider">全部内容</h2>
+          <button
+            onClick={() => navigate("/review")}
+            className="text-xs text-gray-400 hover:text-gray-600"
+          >
+            审核队列 →
+          </button>
+        </div>
         {ideas.length === 0 ? (
           <p className="text-gray-300 text-sm">还没有内容。</p>
         ) : (
