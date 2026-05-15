@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
 from app.core.config import DEBUG
@@ -51,6 +52,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(ideas.router)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/api/health")

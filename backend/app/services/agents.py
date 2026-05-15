@@ -140,3 +140,57 @@ async def run_content_production(
         "token_usage": result.get("usage"),
         "latency_ms": result.get("latency_ms"),
     }
+
+
+async def run_title_optimization(
+    idea: str,
+    track: str = "psychology",
+    tone: str = "gentle_comfort",
+    current_titles: list[str] | None = None,
+) -> dict:
+    """Generate 3 alternative titles for content during review.
+
+    Returns:
+        {"titles": [str, str, str], "token_usage": dict}
+    """
+    existing = "\n".join(f"- {t}" for t in (current_titles or [])) or "（暂无）"
+
+    prompt = f"""你是中文自媒体标题优化专家。
+
+【内容主题】
+{idea}
+
+【赛道】{track}
+【语调风格】{tone}
+
+【当前标题】
+{existing}
+
+请基于以上信息，生成 3 个优化后的备选标题。
+- 每个标题应有不同角度（如：情感共鸣型、干货实用型、争议讨论型）
+- 每个标题 15-30 字
+- 适合微信公众号/小红书场景
+
+只输出 JSON（不要 markdown 围栏）：
+{{
+  "titles": [
+    {{"text": "标题1", "angle": "情感共鸣"}},
+    {{"text": "标题2", "angle": "干货实用"}},
+    {{"text": "标题3", "angle": "争议讨论"}}
+  ]
+}}"""
+
+    system = "你是中文资深标题优化师。只输出有效 JSON，不要任何额外文字。"
+    result = await call_llm(prompt, system_prompt=system)
+    raw = result["content"]
+
+    try:
+        data = parse_json_response(raw)
+        titles = [t.get("text", "") for t in data.get("titles", [])]
+    except (json.JSONDecodeError, LLMError):
+        titles = ["标题生成失败，请重试"]
+
+    return {
+        "titles": titles[:3],
+        "token_usage": result.get("usage"),
+    }

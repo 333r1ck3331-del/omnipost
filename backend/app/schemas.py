@@ -109,3 +109,8 @@ class ProduceStatus(BaseModel):
     content_xhs: Optional[str] = None
     content_video_script: Optional[str] = None
     title_suggestions: Optional[list] = None
+
+
+class TitleOptimizeResponse(BaseModel):
+    """Title optimization result."""
+    titles: list[str]

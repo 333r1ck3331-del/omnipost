@@ -10,9 +10,10 @@ from app.core.database import get_db
 from app.models import ContentItem
 from app.schemas import (
     IdeaCreate, ProduceRequest, ReviewEdit, ReviewReject, PublishAction,
-    IdeaSummary, IdeaDetail, IdeaListResponse, Gate1Response, ProduceStatus,
+    IdeaSummary, IdeaDetail, IdeaListResponse, Gate1Response, ProduceStatus, TitleOptimizeResponse,
 )
-from app.services.agents import run_value_judge, run_content_production
+from app.services.agents import run_value_judge, run_content_production, run_title_optimization
+from app.services.tts import generate_speech, TTSError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ideas", tags=["ideas"])
@@ -236,6 +237,28 @@ async def mark_published(idea_id: str, body: PublishAction, db: AsyncSession = D
     item.status = "published"
     await db.commit()
     return {"status": "ok", "message": "已标记为已发布"}
+
+
+@router.post("/{idea_id}/optimize-titles", response_model=TitleOptimizeResponse)
+async def optimize_titles(idea_id: str, db: AsyncSession = Depends(get_db)):
+    """Generate 3 alternative titles for the idea content."""
+    item = await _get_or_404(idea_id, db)
+    existing = json.loads(item.title_suggestions) if item.title_suggestions else []
+    result = await run_title_optimization(item.idea_text, item.track, item.tone, existing)
+    return TitleOptimizeResponse(titles=result["titles"])
+
+
+@router.post("/{idea_id}/tts")
+async def generate_tts(idea_id: str, db: AsyncSession = Depends(get_db)):
+    """Generate TTS audio from video script."""
+    item = await _get_or_404(idea_id, db)
+    if not item.content_video_script:
+        raise HTTPException(400, "请先生成视频脚本")
+    try:
+        result = await generate_speech(item.content_video_script)
+        return {"status": "ok", "url": result["url"], "filename": result["filename"]}
+    except TTSError as e:
+        raise HTTPException(400, str(e))
 
 
 # ── Helpers ──

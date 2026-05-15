@@ -98,3 +98,11 @@ export async function markPublished(id: string, url?: string, notes?: string) {
     body: JSON.stringify({ publish_url: url, notes }),
   });
 }
+
+export async function optimizeTitles(id: string): Promise<{ titles: string[] }> {
+  return fetchJSON(`${API}/ideas/${id}/optimize-titles`, { method: "POST" });
+}
+
+export async function generateTTS(id: string): Promise<{ url: string }> {
+  return fetchJSON(`${API}/ideas/${id}/tts`, { method: "POST" });
+}

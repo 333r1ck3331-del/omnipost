@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getIdea, approveGate1, rejectGate1, produceContent,
-  editReview, approveReview, rejectReview, markPublished,
+  editReview, approveReview, rejectReview, markPublished, optimizeTitles, generateTTS,
 } from "../api";
 import type { Idea } from "../api";
 import { CONTENT_TYPES, TYPE_LABELS, STATUS_LABELS } from "../constants";
@@ -17,6 +17,10 @@ export default function IdeaDetail() {
   const [editGzh, setEditGzh] = useState("");
   const [editXhs, setEditXhs] = useState("");
   const [editVideo, setEditVideo] = useState("");
+  const [optTitles, setOptTitles] = useState<string[]>([]);
+  const [optimizing, setOptimizing] = useState(false);
+  const [ttsUrl, setTtsUrl] = useState("");
+  const [ttsGenerating, setTtsGenerating] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -168,9 +172,27 @@ export default function IdeaDetail() {
 
           {idea.title_suggestions && idea.title_suggestions.length > 0 && (
             <div>
-              <h3 className="text-xs text-gray-400 mb-3">标题建议</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-xs text-gray-400">标题建议</h3>
+                {!isPublished && (
+                  <button
+                    onClick={async () => {
+                      setOptimizing(true);
+                      try {
+                        const r = await optimizeTitles(idea.id);
+                        setOptTitles(r.titles);
+                      } catch { /* ignore */ }
+                      setOptimizing(false);
+                    }}
+                    disabled={optimizing}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition"
+                  >
+                    {optimizing ? "优化中..." : "优化标题"}
+                  </button>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">
-                {idea.title_suggestions.map((t, i) => (
+                {(optTitles.length > 0 ? optTitles : idea.title_suggestions).map((t, i) => (
                   <span key={i} className="text-xs px-3 py-1.5 bg-[#f5f1ea] text-gray-600 rounded-full">
                     {t}
                   </span>
@@ -225,20 +247,41 @@ export default function IdeaDetail() {
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">视频脚本</h3>
-                {!isPublished && (
+                <div className="flex gap-3">
                   <button
-                    onClick={async () => { await rejectReview(idea.id, "video"); load(); }}
-                    className="text-xs text-gray-400 hover:text-red-500 transition"
+                    onClick={async () => {
+                      setTtsGenerating(true);
+                      try {
+                        const r = await generateTTS(idea.id);
+                        setTtsUrl(r.url);
+                      } catch { /* ignore */ }
+                      setTtsGenerating(false);
+                    }}
+                    disabled={ttsGenerating}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition"
                   >
-                    重做
+                    {ttsGenerating ? "生成中..." : ttsUrl ? "重新生成语音" : "生成语音"}
                   </button>
-                )}
+                  {!isPublished && (
+                    <button
+                      onClick={async () => { await rejectReview(idea.id, "video"); load(); }}
+                      className="text-xs text-gray-400 hover:text-red-500 transition"
+                    >
+                      重做
+                    </button>
+                  )}
+                </div>
               </div>
               <textarea
                 value={editVideo}
                 onChange={(e) => setEditVideo(e.target.value)}
                 className="w-full min-h-[140px] text-sm p-4 bg-white border border-gray-100 rounded resize-y focus:outline-none focus:border-gray-300 font-mono leading-relaxed"
               />
+              {ttsUrl && (
+                <audio controls className="mt-3 w-full" src={ttsUrl}>
+                  您的浏览器不支持音频播放
+                </audio>
+              )}
             </div>
           )}
 
