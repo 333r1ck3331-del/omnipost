@@ -1,7 +1,7 @@
 """Search service — Tavily API wrapper for competitor research."""
 
 import httpx
-from app.core.config import TAVILY_API_KEY
+from app.core.config import TAVILY_API_KEY, TAVILY_ENABLED
 
 TAVILY_URL = "https://api.tavily.com/search"
 
@@ -16,6 +16,8 @@ async def search_competitors(query: str, max_results: int = 5) -> list[dict]:
     Returns:
         List of {title, url, content, score}
     """
+    if not TAVILY_ENABLED:
+        return []
     if not TAVILY_API_KEY or TAVILY_API_KEY.startswith("tvly-xxx"):
         raise SearchError("Tavily API Key 未配置。请在 backend/.env 中设置 TAVILY_API_KEY。")
 

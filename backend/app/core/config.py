@@ -25,6 +25,7 @@ DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
 # Search
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+TAVILY_ENABLED = os.getenv("TAVILY_ENABLED", "true").lower() == "true"
 
 # Paths — from app/core/config.py, go up 2 levels to backend/
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
