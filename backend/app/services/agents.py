@@ -8,7 +8,7 @@ from app.services.prompt_loader import (
     assemble_value_judge_prompt,
     assemble_content_production_prompt,
 )
-from app.services.search import search_competitors, format_search_results, SearchError
+from app.services.search import search_competitors, format_search_results, SearchError, fetch_urls, format_url_content
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +72,55 @@ async def run_content_production(
     selected_types: list[str] | None = None,
     brief: str = "",
 ) -> dict:
-    """Produce content: full package including gzh, xhs, video script, titles, strategy.
+    """Produce content: full package including gzh, xhs, video script, titles.
+
+    Before calling the LLM, searches for related content via Tavily and
+    crawls any URLs found in the user's brief. Results are injected as
+    a research brief into the production prompt.
 
     Returns:
         {"content_gzh": str, "content_xhs": str, "content_video_script": str,
-         "title_suggestions": list, "production_raw": dict, "token_usage": dict}
+         "title_suggestions": list, "production_raw": dict, "token_usage": dict,
+         "search_used": bool, "urls_fetched": int}
     """
-    prompt = assemble_content_production_prompt(idea, selected_types, brief=brief)
+    # Step 0: Research — search + URL crawl
+    research_parts = []
+    search_used = False
+    urls_fetched = 0
+
+    # Extract URLs from brief
+    import re
+    urls = re.findall(r'https?://[^\s<>"]+', brief) if brief else []
+
+    # Tavily search
+    try:
+        search_query = f"{idea} {' '.join(brief.split()[:20])}" if brief else idea
+        results = await search_competitors(search_query, max_results=5)
+        if results:
+            research_parts.append(format_search_results(results))
+            search_used = True
+            logger.info(f"Production search: {len(results)} results")
+    except SearchError as e:
+        logger.warning(f"Production search skipped: {e}")
+    except Exception as e:
+        logger.error(f"Production search error: {e}")
+
+    # URL crawl
+    if urls:
+        try:
+            crawled = await fetch_urls(urls)
+            if crawled:
+                research_parts.append(format_url_content(crawled))
+                urls_fetched = len([c for c in crawled if not c.get("error")])
+                logger.info(f"Crawled {len(urls)} URLs, {urls_fetched} OK")
+        except Exception as e:
+            logger.error(f"URL crawl error: {e}")
+
+    research_brief = "\n\n".join(research_parts) if research_parts else ""
+
+    prompt = assemble_content_production_prompt(
+        idea, selected_types, brief=brief, research_brief=research_brief,
+    )
     system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
 
     result = await call_llm(prompt, system_prompt=system)
@@ -136,6 +178,8 @@ async def run_content_production(
         "production_raw": data,
         "token_usage": result.get("usage"),
         "latency_ms": result.get("latency_ms"),
+        "search_used": search_used,
+        "urls_fetched": urls_fetched,
     }
 
 

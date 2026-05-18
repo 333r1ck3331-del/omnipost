@@ -62,3 +62,37 @@ def format_search_results(results: list[dict]) -> str:
         lines.append(f"   摘要: {r['content']}")
         lines.append("")
     return "\n".join(lines)
+
+
+async def fetch_urls(urls: list[str]) -> list[dict]:
+    """Fetch and extract text content from URLs (simple HTTP GET)."""
+    results = []
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        for url in urls[:3]:  # max 3 URLs to avoid blowing up
+            try:
+                resp = await client.get(url, headers={"User-Agent": "OmniPost/1.0"})
+                if resp.status_code == 200:
+                    text = resp.text[:3000]  # trim
+                    # Crude HTML-to-text: remove tags
+                    import re
+                    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL)
+                    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
+                    text = re.sub(r'<[^>]+>', ' ', text)
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    results.append({"url": url, "content": text[:2000]})
+                else:
+                    results.append({"url": url, "content": f"[HTTP {resp.status_code}]", "error": True})
+            except Exception as e:
+                results.append({"url": url, "content": f"[抓取失败: {e}]", "error": True})
+    return results
+
+
+def format_url_content(results: list[dict]) -> str:
+    """Format fetched URL content for prompt injection."""
+    if not results:
+        return ""
+    lines = ["【用户指定的参考链接内容】"]
+    for r in results:
+        lines.append(f"\n--- {r['url']} ---")
+        lines.append(r['content'][:1500])
+    return "\n".join(lines)

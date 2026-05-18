@@ -1,71 +1,46 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "OmniPost Content Package",
-  "description": "从留白 (liubai) 继承的完整内容包输出结构",
+  "description": "精简版内容包输出结构 — 聚焦内容生产，去掉运营字段",
   "type": "object",
-  "required": ["score", "strategy", "evidence_pool", "titles", "scripts", "distribution"],
+  "required": ["score", "evidence_pool", "titles", "scripts"],
   "properties": {
     "score": {
       "type": "object",
-      "required": ["overall", "verdict"],
+      "description": "自评分——写完内容后对自己的评估",
+      "required": ["overall"],
       "properties": {
-        "overall": { "type": "integer", "minimum": 0, "maximum": 100, "description": "综合评分" },
-        "verdict": { "type": "string", "description": "一句话判断，如「差异化空间充足，值得做」" },
-        "knowledge_density": {
-          "type": "object",
-          "properties": {
-            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
-            "plus": { "type": "array", "items": { "type": "string" }, "description": "加分点" },
-            "minus": { "type": "array", "items": { "type": "string" }, "description": "扣分点" }
-          }
-        },
-        "emotional_concreteness": {
-          "type": "object",
-          "properties": {
-            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
-            "plus": { "type": "array", "items": { "type": "string" } },
-            "minus": { "type": "array", "items": { "type": "string" } }
-          }
-        },
+        "overall": { "type": "integer", "minimum": 0, "maximum": 100, "description": "综合自评" },
         "ai_trace": {
           "type": "object",
+          "description": "AI 痕迹自检",
           "properties": {
-            "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "越低越好（低=AI痕迹少）" },
-            "detected_patterns": { "type": "array", "items": { "type": "string" }, "description": "发现的AI痕迹模式" },
+            "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "AI 痕迹严重程度，越低越好" },
+            "detected_patterns": { "type": "array", "items": { "type": "string" }, "description": "发现的 AI 痕迹模式" },
             "verdict": { "type": "string", "enum": ["轻微", "中度", "严重"] }
           }
-        },
-        "advice": { "type": "string", "description": "改进建议" }
-      }
-    },
-    "strategy": {
-      "type": "object",
-      "required": ["track", "audience", "platform_fit"],
-      "properties": {
-        "track": { "type": "string", "description": "赛道分类" },
-        "audience": { "type": "string", "description": "受众画像" },
-        "platform_fit": { "type": "string", "description": "最适合的主战场" },
-        "core_emotion": { "type": "string", "description": "核心情绪锚点" },
-        "hook_angle": { "type": "string", "description": "切入角度" },
-        "best_time": { "type": "string", "description": "最佳发布时段建议" }
+        }
       }
     },
     "evidence_pool": {
       "type": "array",
+      "description": "本文引用的证据库。每一条必须真实存在，且必须在 scripts 中实际使用。",
       "items": {
         "type": "object",
         "required": ["type", "title", "source", "detail", "usage"],
         "properties": {
-          "type": { "type": "string", "enum": ["心理学概念", "社会学研究", "历史典故", "文学作品", "真实案例", "经典实验", "电影场景"] },
+          "type": { "type": "string", "enum": ["心理学概念", "社会学研究", "历史典故", "文学作品", "真实案例", "经典实验", "电影场景", "个人观察", "数据报告"] },
           "title": { "type": "string", "description": "具体名称" },
-          "source": { "type": "string", "description": "提出者+年代/出处" },
-          "detail": { "type": "string", "description": "详细说明，3-4句" },
-          "usage": { "type": "string", "description": "本次内容如何使用这个素材" }
+          "source": { "type": "string", "description": "出处/提出者+年代" },
+          "detail": { "type": "string", "description": "详细说明，3-4 句" },
+          "usage": { "type": "string", "description": "本文如何使用这个素材" }
         }
-      }
+      },
+      "minItems": 2
     },
     "titles": {
       "type": "array",
+      "description": "3 个备选标题，每个不同角度",
       "minItems": 3,
       "maxItems": 3,
       "items": {
@@ -73,12 +48,13 @@
         "required": ["type", "text"],
         "properties": {
           "type": { "type": "string", "enum": ["情绪共鸣型", "洞察金句型", "好奇引导型"] },
-          "text": { "type": "string" }
+          "text": { "type": "string", "maxLength": 30 }
         }
       }
     },
     "scripts": {
       "type": "object",
+      "description": "三平台内容——核心产出",
       "required": ["douyin", "xiaohongshu", "gongzhonghao"],
       "properties": {
         "douyin": {
@@ -101,7 +77,7 @@
                 }
               }
             },
-            "ending_hook": { "type": "string", "description": "结尾留白句" }
+            "ending_hook": { "type": "string", "description": "结尾互动引导" }
           }
         },
         "xiaohongshu": {
@@ -109,15 +85,14 @@
           "properties": {
             "title": { "type": "string" },
             "cover_text": { "type": "string", "description": "封面大字，6-12字" },
-            "body": { "type": "string", "description": "正文，250-400字，用换行分段。必须织入evidence_pool中至少1个真实素材" },
-            "tags": { "type": "array", "items": { "type": "string" } },
-            "cover_image_prompt": { "type": "string", "description": "封面图 AI 提示词" }
+            "body": { "type": "string", "description": "正文，250-400字，用换行分段。必须织入 evidence_pool 中至少 1 个真实素材" },
+            "tags": { "type": "array", "items": { "type": "string" }, "maxItems": 5 }
           }
         },
         "gongzhonghao": {
           "type": "object",
           "properties": {
-            "title": { "type": "string" },
+            "title": { "type": "string", "maxLength": 22 },
             "subtitle": { "type": "string", "description": "副标题" },
             "blocks": {
               "type": "array",
@@ -128,7 +103,7 @@
                     "required": ["type", "content"],
                     "properties": {
                       "type": { "const": "text" },
-                      "content": { "type": "string", "description": "段落文字，必须织入证据" }
+                      "content": { "type": "string", "description": "段落文字。必须织入 evidence_pool 中的证据" }
                     }
                   },
                   {
@@ -136,7 +111,7 @@
                     "required": ["type", "position", "prompt"],
                     "properties": {
                       "type": { "const": "image_cue" },
-                      "position": { "type": "string", "description": "建议配图位置" },
+                      "position": { "type": "string", "description": "配图位置" },
                       "prompt": { "type": "string", "description": "AI 配图提示词" }
                     }
                   }
@@ -147,44 +122,6 @@
             "estimated_words": { "type": "string", "example": "约 1800 字" }
           }
         }
-      }
-    },
-    "visual_assets": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "purpose": { "type": "string", "description": "用途说明" },
-          "prompt": { "type": "string", "description": "AI 生成提示词（中文）" },
-          "negative": { "type": "string", "description": "避免的元素" },
-          "tool_suggest": { "type": "string", "description": "推荐工具" }
-        }
-      }
-    },
-    "distribution": {
-      "type": "object",
-      "properties": {
-        "audience_layers": {
-          "type": "object",
-          "properties": {
-            "core": { "type": "string", "description": "核心受众" },
-            "extend": { "type": "string", "description": "外延受众" },
-            "avoid": { "type": "string", "description": "应避开的人群" }
-          }
-        },
-        "best_publish": {
-          "type": "object",
-          "properties": {
-            "douyin": { "type": "string" },
-            "xiaohongshu": { "type": "string" },
-            "gongzhonghao": { "type": "string" }
-          }
-        },
-        "tags_douyin": { "type": "array", "items": { "type": "string" }, "minItems": 5 },
-        "tags_xiaohongshu": { "type": "array", "items": { "type": "string" }, "minItems": 7 },
-        "should_promote": { "type": "string", "description": "是否投流 + 理由 + 预算建议" },
-        "series_potential": { "type": "string", "description": "是否适合系列化 + 后续选题 2-3 个" },
-        "risk_warning": { "type": "string", "description": "潜在风险，无则填'无明显风险'" }
       }
     }
   }

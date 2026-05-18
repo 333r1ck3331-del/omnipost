@@ -98,10 +98,12 @@ def assemble_content_production_prompt(
     idea: str,
     selected_types: list[str] | None = None,
     brief: str = "",
+    research_brief: str = "",
 ) -> str:
     """Assemble the full prompt for content production.
 
-    This is the liubai-equivalent: produces the full content package.
+    Args:
+        research_brief: Pre-formatted search/crawl results to inject as research context.
     """
     system = load_system_prompt()
     rules = load_rules()
@@ -114,8 +116,16 @@ def assemble_content_production_prompt(
 {brief.strip()}
 """
 
+    research_block = ""
+    if research_brief.strip():
+        research_block = f"""
+【研究简报 — 以下内容来自网络搜索和链接抓取，请融入内容】
+{research_brief.strip()}
+"""
+
     prompt = f"""{system}
 {brief_block}
+{research_block}
 【用户的想法/素材】
 {idea}
 
