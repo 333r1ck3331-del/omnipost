@@ -113,3 +113,22 @@ export async function optimizeTitles(id: string): Promise<{ titles: string[] }> 
 export async function generateTTS(id: string): Promise<{ url: string }> {
   return fetchJSON(`${API}/ideas/${id}/tts`, { method: "POST" });
 }
+
+// ── Config ──
+
+export interface UserConfig {
+  provider: string;
+  api_key: string;
+  tavily_enabled: boolean;
+}
+
+export async function getConfig(): Promise<UserConfig> {
+  return fetchJSON("/api/config");
+}
+
+export async function saveConfig(cfg: UserConfig): Promise<UserConfig> {
+  return fetchJSON("/api/config", {
+    method: "POST",
+    body: JSON.stringify(cfg),
+  });
+}

@@ -21,8 +21,7 @@ class ContentItem(Base):
     id = Column(String, primary_key=True, default=_uuid)
     idea_text = Column(Text, nullable=False)
     brief = Column(Text, nullable=True, default=None, comment="User's content requirements")
-    track = Column(String, default="psychology")
-    tone = Column(String, default="gentle_comfort")
+    # track/tone removed — system is generic now
     status = Column(String, default="draft")
 
     # Gate 1 — value judgment
@@ -47,16 +46,3 @@ class ContentItem(Base):
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
-class QualityLog(Base):
-    __tablename__ = "quality_logs"
-
-    id = Column(String, primary_key=True, default=_uuid)
-    content_item_id = Column(String, nullable=False)
-    step = Column(String, nullable=False)
-    model = Column(String, nullable=True)
-    tokens_in = Column(Integer, nullable=True)
-    tokens_out = Column(Integer, nullable=True)
-    latency_ms = Column(Integer, nullable=True)
-    you_edited = Column(Integer, default=0)
-    satisfaction = Column(Integer, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=_now)

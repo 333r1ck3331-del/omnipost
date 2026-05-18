@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import DEBUG
 from app.core.database import init_db
-from app.routers import ideas
+from app.routers import ideas, config
 
 logging.basicConfig(level=logging.INFO if DEBUG else logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(ideas.router)
+app.include_router(config.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

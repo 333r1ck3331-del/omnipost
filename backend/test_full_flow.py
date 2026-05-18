@@ -15,8 +15,6 @@ async def main():
         print("1. Submitting idea...")
         r = await client.post("/api/ideas", json={
             "idea_text": "年轻人开始害怕接电话了",
-            "track": "psychology",
-            "tone": "clear_empathy",
         })
         assert r.status_code == 201, f"Step 1 failed: {r.status_code}"
         idea = r.json()
@@ -35,7 +33,6 @@ async def main():
         print("3. Producing content (calling DeepSeek, ~60s)...")
         r = await client.post(f"/api/ideas/{idea_id}/produce", json={
             "types": ["gzh", "xhs", "video"],
-            "tone": "clear_empathy",
         })
         assert r.status_code == 200, f"Step 3 failed: {r.status_code} {r.text[:200]}"
         idea = r.json()

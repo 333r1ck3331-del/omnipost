@@ -1,6 +1,6 @@
 """Load and assemble prompts from the prompts/ directory.
 
-Supports variable injection: {track_display}, {tone_name}, {idea}.
+Supports variable injection: {idea}.
 """
 
 import os
