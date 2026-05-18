@@ -42,7 +42,13 @@ export default function Home() {
       <h1 className="text-2xl font-semibold tracking-tight mb-2">
         Omni<span className="text-gray-300">Post</span>
       </h1>
-      <p className="text-xs text-gray-400 mb-12">v0.1 · 心理赛道</p>
+      <p className="text-xs text-gray-400 mb-2">v0.2 · 通用内容工具</p>
+      <button
+        onClick={() => navigate("/settings")}
+        className="text-xs text-gray-300 hover:text-gray-500 mb-12 block"
+      >
+        设置 →
+      </button>
 
       <div className="mb-16">
         <textarea

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import IdeaDetail from "./pages/IdeaDetail";
 import ReviewQueue from "./pages/ReviewQueue";
+import Settings from "./pages/Settings";
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/review" element={<ReviewQueue />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/ideas/:id" element={<IdeaDetail />} />
           </Routes>
         </main>
