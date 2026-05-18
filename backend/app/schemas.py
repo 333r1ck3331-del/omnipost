@@ -21,6 +21,11 @@ class ProduceRequest(BaseModel):
     types: list[str] = Field(..., description="勾选的内容类型: gzh, xhs, video")
 
 
+class BriefRequest(BaseModel):
+    """保存内容要求"""
+    brief_text: str = Field(..., min_length=1, max_length=2000, description="内容方向/要求")
+
+
 class ReviewEdit(BaseModel):
     """编辑某条内容"""
     content_gzh: Optional[str] = None

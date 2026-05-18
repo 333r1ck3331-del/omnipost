@@ -74,6 +74,13 @@ export async function produceContent(id: string, types: string[], tone?: string)
   });
 }
 
+export async function saveBrief(id: string, briefText: string) {
+  return fetchJSON(`${API}/ideas/${id}/brief`, {
+    method: "POST",
+    body: JSON.stringify({ brief_text: briefText }),
+  });
+}
+
 export async function editReview(id: string, data: Record<string, string | null>) {
   return fetchJSON(`${API}/ideas/${id}/review/edit`, {
     method: "PATCH",

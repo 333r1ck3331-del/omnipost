@@ -20,6 +20,7 @@ class ContentItem(Base):
 
     id = Column(String, primary_key=True, default=_uuid)
     idea_text = Column(Text, nullable=False)
+    brief = Column(Text, nullable=True, default=None, comment="User's content requirements")
     track = Column(String, default="psychology")
     tone = Column(String, default="gentle_comfort")
     status = Column(String, default="draft")

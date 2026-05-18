@@ -72,6 +72,7 @@ async def run_value_judge(idea: str) -> dict:
 async def run_content_production(
     idea: str,
     selected_types: list[str] | None = None,
+    brief: str = "",
 ) -> dict:
     """Produce content: full package including gzh, xhs, video script, titles, strategy.
 
@@ -79,7 +80,7 @@ async def run_content_production(
         {"content_gzh": str, "content_xhs": str, "content_video_script": str,
          "title_suggestions": list, "production_raw": dict, "token_usage": dict}
     """
-    prompt = assemble_content_production_prompt(idea, selected_types)
+    prompt = assemble_content_production_prompt(idea, selected_types, brief=brief)
     system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
 
     result = await call_llm(prompt, system_prompt=system)

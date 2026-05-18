@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from app.core.database import get_db
 from app.models import ContentItem
 from app.schemas import (
-    IdeaCreate, ProduceRequest, ReviewEdit, ReviewReject, PublishAction,
+    IdeaCreate, ProduceRequest, BriefRequest, ReviewEdit, ReviewReject, PublishAction,
     IdeaSummary, IdeaDetail, IdeaListResponse, Gate1Response, ProduceStatus, TitleOptimizeResponse,
 )
 from app.services.agents import run_value_judge, run_content_production, run_title_optimization
@@ -107,6 +107,15 @@ async def reject_gate1(idea_id: str, db: AsyncSession = Depends(get_db)):
     return {"status": "ok", "message": "已驳回"}
 
 
+@router.post("/{idea_id}/brief")
+async def save_brief(idea_id: str, body: BriefRequest, db: AsyncSession = Depends(get_db)):
+    """Save user's content brief before production."""
+    item = await _get_or_404(idea_id, db)
+    item.brief = body.brief_text
+    await db.commit()
+    return {"status": "ok", "message": "Brief saved"}
+
+
 @router.post("/{idea_id}/produce")
 async def produce_content(
     idea_id: str,
@@ -127,6 +136,7 @@ async def produce_content(
         result = await run_content_production(
             item.idea_text,
             body.types,
+            brief=item.brief or "",
         )
 
         item.content_gzh = result.get("content_gzh")
@@ -201,6 +211,7 @@ async def reject_review(idea_id: str, body: ReviewReject, db: AsyncSession = Dep
         result = await run_content_production(
             item.idea_text,
             [body.retry_type],
+            brief=item.brief or "",
         )
 
         if body.retry_type == "gzh":

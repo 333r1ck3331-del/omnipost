@@ -84,6 +84,7 @@ def assemble_value_judge_prompt(
 def assemble_content_production_prompt(
     idea: str,
     selected_types: list[str] | None = None,
+    brief: str = "",
 ) -> str:
     """Assemble the full prompt for content production.
 
@@ -93,8 +94,15 @@ def assemble_content_production_prompt(
     rules = load_rules()
     schema = load_output_schema()
 
-    prompt = f"""{system}
+    brief_block = ""
+    if brief.strip():
+        brief_block = f"""
+【用户的内容要求】
+{brief.strip()}
+"""
 
+    prompt = f"""{system}
+{brief_block}
 【用户的想法/素材】
 {idea}
 
