@@ -31,7 +31,7 @@ async def run_value_judge(idea: str) -> dict:
         if results:
             search_text = format_search_results(results)
             search_used = True
-            logger.info(f"Tavily search: {len(results)} results for '{query}'")
+            logger.info(f"Tavily search: {len(results)} results for '{idea}'")
     except SearchError as e:
         logger.warning(f"Tavily search skipped: {e}")
     except Exception as e:
