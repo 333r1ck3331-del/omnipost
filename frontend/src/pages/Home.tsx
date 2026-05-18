@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { createIdea, listIdeas } from "../api";
 import type { IdeaSummary } from "../api";
-import { TONES, STATUS_LABELS } from "../constants";
+import { STATUS_LABELS } from "../constants";
 
 export default function Home() {
   const [ideas, setIdeas] = useState<IdeaSummary[]>([]);
   const [input, setInput] = useState("");
-  const [selectedTone, setSelectedTone] = useState<string>("gentle_comfort");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -28,7 +27,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     try {
-      const idea = await createIdea(input.trim(), "psychology", selectedTone);
+      const idea = await createIdea(input.trim());
       setInput("");
       navigate(`/ideas/${idea.id}`);
     } catch (e: any) {
@@ -54,26 +53,6 @@ export default function Home() {
           className="w-full min-h-[100px] text-base italic p-0 bg-transparent border-0 border-b border-gray-200 resize-y focus:outline-none focus:border-gray-400 placeholder-gray-300"
           disabled={loading}
         />
-
-        <div className="mt-8 flex flex-wrap gap-2">
-          {TONES.map((t) => {
-            const selected = selectedTone === t.slug;
-            return (
-              <button
-                key={t.slug}
-                type="button"
-                onClick={() => setSelectedTone(t.slug)}
-                className={`text-xs px-3 py-1.5 rounded-full transition ${
-                  selected
-                    ? "bg-gray-800 text-white"
-                    : "bg-[#f5f1ea] text-gray-500 border border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
 
         <div className="mt-8">
           <button

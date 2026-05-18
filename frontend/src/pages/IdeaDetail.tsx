@@ -64,8 +64,6 @@ export default function IdeaDetail() {
         {idea.idea_text}
       </h1>
       <div className="flex gap-3 text-xs text-gray-400 mb-16">
-        <span>{idea.track}</span>
-        <span>·</span>
         <span>{new Date(idea.created_at).toLocaleString("zh-CN")}</span>
         <span>·</span>
         <span>{STATUS_LABELS[idea.status] || idea.status}</span>

@@ -13,7 +13,7 @@ from app.services.search import search_competitors, format_search_results, Searc
 logger = logging.getLogger(__name__)
 
 
-async def run_value_judge(idea: str, track: str = "psychology", tone: str = "gentle_comfort") -> dict:
+async def run_value_judge(idea: str) -> dict:
     """Gate 1: Evaluate the idea's value.
 
     1. Search for competing content via Tavily
@@ -27,7 +27,7 @@ async def run_value_judge(idea: str, track: str = "psychology", tone: str = "gen
     search_text = None
     search_used = False
     try:
-        query = f"{idea} {track}"
+        query = idea
         results = await search_competitors(query, max_results=5)
         if results:
             search_text = format_search_results(results)
@@ -39,7 +39,7 @@ async def run_value_judge(idea: str, track: str = "psychology", tone: str = "gen
         logger.error(f"Tavily search unexpected error: {e}")
 
     # Step 2: Build prompt with search results
-    prompt = assemble_value_judge_prompt(idea, track, tone, search_results=search_text)
+    prompt = assemble_value_judge_prompt(idea, search_results=search_text)
     system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
 
     # Step 3: Call LLM
@@ -71,8 +71,6 @@ async def run_value_judge(idea: str, track: str = "psychology", tone: str = "gen
 
 async def run_content_production(
     idea: str,
-    track: str = "psychology",
-    tone: str = "gentle_comfort",
     selected_types: list[str] | None = None,
 ) -> dict:
     """Produce content: full package including gzh, xhs, video script, titles, strategy.
@@ -81,7 +79,7 @@ async def run_content_production(
         {"content_gzh": str, "content_xhs": str, "content_video_script": str,
          "title_suggestions": list, "production_raw": dict, "token_usage": dict}
     """
-    prompt = assemble_content_production_prompt(idea, track, tone, selected_types)
+    prompt = assemble_content_production_prompt(idea, selected_types)
     system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
 
     result = await call_llm(prompt, system_prompt=system)
@@ -144,8 +142,6 @@ async def run_content_production(
 
 async def run_title_optimization(
     idea: str,
-    track: str = "psychology",
-    tone: str = "gentle_comfort",
     current_titles: list[str] | None = None,
 ) -> dict:
     """Generate 3 alternative titles for content during review.
@@ -159,9 +155,6 @@ async def run_title_optimization(
 
 【内容主题】
 {idea}
-
-【赛道】{track}
-【语调风格】{tone}
 
 【当前标题】
 {existing}

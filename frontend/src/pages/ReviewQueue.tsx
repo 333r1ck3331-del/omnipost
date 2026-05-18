@@ -64,9 +64,6 @@ export default function ReviewQueue() {
                   <p className="text-sm text-[#2c2c2c] leading-relaxed truncate group-hover:text-black">
                     {item.idea_text}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {item.tone && `语调: ${item.tone}`}
-                  </p>
                 </div>
                 <div className="flex items-center gap-4 shrink-0 text-xs text-gray-400">
                   <span>{new Date(item.created_at).toLocaleDateString("zh-CN")}</span>

@@ -24,15 +24,13 @@ async def create_idea(body: IdeaCreate, db: AsyncSession = Depends(get_db)):
     """Submit a new idea → triggers Gate 1 value judgment."""
     item = ContentItem(
         idea_text=body.idea_text,
-        track=body.track,
-        tone=body.tone,
         status="pending_review",
     )
     db.add(item)
 
     # Run Gate 1
     try:
-        result = await run_value_judge(body.idea_text, body.track, body.tone)
+        result = await run_value_judge(body.idea_text)
         item.gate1_score = result["score"]
         details = result.get("details")
         if details is None:
@@ -123,14 +121,11 @@ async def produce_content(
 
     item.status = "in_production"
     item.selected_types = json.dumps(body.types, ensure_ascii=False)
-    tone = body.tone or item.tone
     await db.commit()
 
     try:
         result = await run_content_production(
             item.idea_text,
-            item.track,
-            tone,
             body.types,
         )
 
@@ -205,8 +200,6 @@ async def reject_review(idea_id: str, body: ReviewReject, db: AsyncSession = Dep
     try:
         result = await run_content_production(
             item.idea_text,
-            item.track,
-            item.tone,
             [body.retry_type],
         )
 
@@ -276,8 +269,6 @@ def _to_summary(item: ContentItem) -> IdeaSummary:
         id=item.id,
         idea_text=item.idea_text[:100] + ("..." if len(item.idea_text or "") > 100 else ""),
         status=item.status,
-        track=item.track,
-        tone=item.tone,
         gate1_score=item.gate1_score,
         created_at=item.created_at.isoformat() if item.created_at else "",
     )
@@ -296,8 +287,6 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
     return IdeaDetail(
         id=item.id,
         idea_text=item.idea_text,
-        track=item.track,
-        tone=item.tone,
         status=item.status,
         gate1_score=item.gate1_score,
         gate1_result=_json(item.gate1_result),

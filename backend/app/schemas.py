@@ -9,8 +9,6 @@ from pydantic import BaseModel, Field
 
 class IdeaCreate(BaseModel):
     idea_text: str = Field(..., min_length=1, max_length=2000, description="内容点子")
-    track: str = Field(default="psychology", description="赛道")
-    tone: str = Field(default="gentle_comfort", description="语调")
 
 
 class Gate1Action(BaseModel):
@@ -21,7 +19,6 @@ class Gate1Action(BaseModel):
 class ProduceRequest(BaseModel):
     """开始生产内容"""
     types: list[str] = Field(..., description="勾选的内容类型: gzh, xhs, video")
-    tone: Optional[str] = Field(default=None, description="覆盖默认语调")
 
 
 class ReviewEdit(BaseModel):
@@ -49,8 +46,6 @@ class IdeaSummary(BaseModel):
     id: str
     idea_text: str
     status: str
-    track: str
-    tone: str
     gate1_score: Optional[int] = None
     created_at: str
 
@@ -66,8 +61,6 @@ class IdeaListResponse(BaseModel):
 class IdeaDetail(BaseModel):
     id: str
     idea_text: str
-    track: str
-    tone: str
     status: str
     gate1_score: Optional[int] = None
     gate1_result: Optional[object] = None

@@ -16,10 +16,3 @@ export const TYPE_LABELS: Record<string, string> = {
   xhs: "小红书",
   video: "视频脚本",
 };
-
-export const TONES = [
-  { slug: "gentle_comfort", label: "温柔抚慰" },
-  { slug: "clear_empathy", label: "清醒共情" },
-  { slug: "social_observe", label: "社会观察" },
-  { slug: "psych_science", label: "心理科普" },
-];

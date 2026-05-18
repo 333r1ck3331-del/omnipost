@@ -14,20 +14,9 @@ def _read(path: str) -> str:
         return f.read()
 
 
-def load_system_prompt(track_name: str = "psychology") -> str:
-    """Load system.md with track variables injected."""
-    template = _read(os.path.join(PROMPTS_DIR, "system.md"))
-
-    # Load track config
-    track_path = os.path.join(CONFIG_DIR, "tracks", f"{track_name}.yaml")
-    if os.path.exists(track_path):
-        with open(track_path, encoding="utf-8") as f:
-            track_config = yaml.safe_load(f)
-        track_display = track_config.get("track_display", track_name)
-    else:
-        track_display = track_name
-
-    return template.replace("{track_display}", track_display).replace("{track_name}", track_name)
+def load_system_prompt() -> str:
+    """Load system.md."""
+    return _read(os.path.join(PROMPTS_DIR, "system.md"))
 
 
 def load_rules() -> str:
@@ -60,8 +49,6 @@ def load_output_schema() -> dict:
 
 def assemble_value_judge_prompt(
     idea: str,
-    track: str = "psychology",
-    tone: str = "gentle_comfort",
     search_results: str | None = None,
 ) -> str:
     """Assemble the full prompt for value judgment (Gate 1).
@@ -79,6 +66,8 @@ def assemble_value_judge_prompt(
 【竞品搜索结查】
 {search_results}
 """
+    else:
+        search_block = "\n（本次未获取到搜索数据，请基于你的知识判断）\n"
 
     return f"""你是中文资深内容研究员。请评估以下内容点子的价值。
 
@@ -87,8 +76,6 @@ def assemble_value_judge_prompt(
 【用户的想法】
 {idea}
 
-【赛道】{track}
-
 请基于{"搜索结果和" if search_results else ""}你的专业知识，只输出 score 部分的 JSON（严格 JSON，不要 markdown 围栏）：
 {json.dumps(score_schema, ensure_ascii=False, indent=2)}
 """
@@ -96,27 +83,17 @@ def assemble_value_judge_prompt(
 
 def assemble_content_production_prompt(
     idea: str,
-    track: str = "psychology",
-    tone: str = "gentle_comfort",
     selected_types: list[str] | None = None,
 ) -> str:
     """Assemble the full prompt for content production.
 
     This is the liubai-equivalent: produces the full content package.
     """
-    system = load_system_prompt(track)
-    tone_prompt = load_tone_prompt(tone)
+    system = load_system_prompt()
     rules = load_rules()
     schema = load_output_schema()
 
-    # Filter schema to only requested types if specified
-    if selected_types:
-        # Keep full schema for now — the AI will fill what's asked
-        pass
-
     prompt = f"""{system}
-
-{tone_prompt}
 
 【用户的想法/素材】
 {idea}

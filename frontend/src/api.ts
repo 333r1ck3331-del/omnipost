@@ -3,8 +3,6 @@ const API = "/api";
 export interface Idea {
   id: string;
   idea_text: string;
-  track: string;
-  tone: string;
   status: string;
   gate1_score: number | null;
   gate1_result: any;
@@ -25,8 +23,6 @@ export interface IdeaSummary {
   id: string;
   idea_text: string;
   status: string;
-  track: string;
-  tone: string;
   gate1_score: number | null;
   created_at: string;
 }
@@ -43,10 +39,10 @@ async function fetchJSON(url: string, options?: RequestInit) {
   return res.json();
 }
 
-export async function createIdea(ideaText: string, track = "psychology", tone = "gentle_comfort"): Promise<Idea> {
+export async function createIdea(ideaText: string): Promise<Idea> {
   return fetchJSON(`${API}/ideas`, {
     method: "POST",
-    body: JSON.stringify({ idea_text: ideaText, track, tone }),
+    body: JSON.stringify({ idea_text: ideaText }),
   });
 }
 
