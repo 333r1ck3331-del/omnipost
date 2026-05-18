@@ -39,11 +39,10 @@ async def run_value_judge(idea: str) -> dict:
         logger.error(f"Tavily search unexpected error: {e}")
 
     # Step 2: Build prompt with search results
-    prompt = assemble_value_judge_prompt(idea, search_results=search_text)
-    system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
+    system, user = assemble_value_judge_prompt(idea, search_results=search_text)
 
-    # Step 3: Call LLM
-    result = await call_llm(prompt, system_prompt=system)
+    # Step 3: Call LLM — use the dedicated value_judge.md as system prompt
+    result = await call_llm(user, system_prompt=system)
     raw = result["content"]
 
     # Step 4: Parse
