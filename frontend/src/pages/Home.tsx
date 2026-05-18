@@ -99,7 +99,7 @@ export default function Home() {
                   <div className="flex items-center gap-4 shrink-0 text-xs text-gray-400">
                     <span>{new Date(idea.created_at).toLocaleDateString("zh-CN")}</span>
                     {idea.gate1_score != null && (
-                      <span className="text-gray-500">{idea.gate1_score}/10</span>
+                      <span className="text-gray-500">{idea.gate1_score}/100</span>
                     )}
                     <span className="text-gray-400">
                       {STATUS_LABELS[idea.status] || idea.status}

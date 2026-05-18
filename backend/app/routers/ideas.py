@@ -144,7 +144,7 @@ async def produce_content(
         item.content_video_script = result.get("content_video_script")
         item.title_suggestions = json.dumps(result.get("title_suggestions"), ensure_ascii=False)
         item.production_raw = json.dumps(result.get("production_raw"), ensure_ascii=False)
-        item.status = "completed"
+        item.status = "review"
 
         # Log quality (skip for now)
         pass
@@ -236,6 +236,8 @@ async def reject_review(idea_id: str, body: ReviewReject, db: AsyncSession = Dep
 async def mark_published(idea_id: str, body: PublishAction, db: AsyncSession = Depends(get_db)):
     """Mark as published with optional URL."""
     item = await _get_or_404(idea_id, db)
+    if item.status != "completed":
+        raise HTTPException(400, "请先通过内容审核（门禁 2）")
     item.publish_url = body.publish_url
     item.notes = body.notes
     item.status = "published"

@@ -48,6 +48,7 @@ export default function IdeaDetail() {
   const isGate1Ready = idea.status === "pending_review";
   const isApproved = idea.status === "approved";
   const isProducing = idea.status === "in_production";
+  const isReviewing = idea.status === "review";
   const isCompleted = idea.status === "completed";
   const isPublished = idea.status === "published";
 
@@ -80,12 +81,56 @@ export default function IdeaDetail() {
           <div>
             <div className="flex items-baseline gap-2 mb-4">
               <span className="text-4xl font-light text-[#2c2c2c]">{idea.gate1_score}</span>
-              <span className="text-sm text-gray-400">/ 10</span>
+              <span className="text-sm text-gray-400">/ 100</span>
             </div>
             {idea.gate1_result.verdict && (
               <p className="text-sm text-gray-600 leading-relaxed mb-4">
                 {idea.gate1_result.verdict}
               </p>
+            )}
+            {idea.gate1_result.dimensions && (
+              <div className="mt-6 space-y-4">
+                <h3 className="text-xs text-gray-400 tracking-wider mb-3">逐项评估</h3>
+                {Object.entries(idea.gate1_result.dimensions as Record<string, {score:number;plus:string[];minus:string[]}>).map(([key, dim]) => {
+                  if (!dim || typeof dim.score !== "number") return null;
+                  const labels: Record<string,string> = {
+                    originality: "原创性", audience_appeal: "受众吸引力",
+                    content_richness: "内容厚度", timeliness: "时效性", feasibility: "执行可行性",
+                  };
+                  const pct = Math.round((dim.score / 100) * 100);
+                  const color = dim.score >= 76 ? "text-green-600" : dim.score >= 61 ? "text-gray-700" : dim.score >= 41 ? "text-yellow-600" : "text-red-500";
+                  return (
+                    <div key={key} className="border-b border-gray-50 pb-3">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-medium">{labels[key] || key}</span>
+                        <span className={`text-sm font-mono ${color}`}>{dim.score}</span>
+                      </div>
+                      {dim.plus?.length > 0 && (
+                        <ul className="mt-1 space-y-0.5">
+                          {dim.plus.map((p, i) => <li key={i} className="text-xs text-green-600 pl-3">+ {p}</li>)}
+                        </ul>
+                      )}
+                      {dim.minus?.length > 0 && (
+                        <ul className="mt-0.5 space-y-0.5">
+                          {dim.minus.map((m, i) => <li key={i} className="text-xs text-red-400 pl-3">− {m}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {idea.gate1_result.competitive_analysis && (
+              <div className="mt-5">
+                <h3 className="text-xs text-gray-400 tracking-wider mb-1">竞品分析</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">{idea.gate1_result.competitive_analysis}</p>
+              </div>
+            )}
+            {idea.gate1_result.advice && (
+              <div className="mt-4">
+                <h3 className="text-xs text-gray-400 tracking-wider mb-1">改进建议</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">{idea.gate1_result.advice}</p>
+              </div>
             )}
             {idea.gate1_result.error && (
               <p className="text-sm text-red-500">{idea.gate1_result.error}</p>
@@ -187,7 +232,7 @@ export default function IdeaDetail() {
       )}
 
       {/* Review */}
-      {(isCompleted || isPublished) && (
+      {(isReviewing || isCompleted || isPublished) && (
         <section className="mb-16 space-y-10">
           <h2 className="text-xs text-gray-400 tracking-wider">门禁 2 · 内容审核</h2>
 
@@ -195,7 +240,7 @@ export default function IdeaDetail() {
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">标题建议</h3>
-                {!isPublished && (
+                {isReviewing && (
                   <button
                     onClick={async () => {
                       setOptimizing(true);
@@ -226,7 +271,7 @@ export default function IdeaDetail() {
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">公众号长文</h3>
-                {!isPublished && (
+                {isReviewing && (
                   <button
                     onClick={async () => { setError(""); await rejectReview(idea.id, "gzh"); load(); }}
                     className="text-xs text-gray-400 hover:text-red-500 transition"
@@ -247,7 +292,7 @@ export default function IdeaDetail() {
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">小红书短文</h3>
-                {!isPublished && (
+                {isReviewing && (
                   <button
                     onClick={async () => { setError(""); await rejectReview(idea.id, "xhs"); load(); }}
                     className="text-xs text-gray-400 hover:text-red-500 transition"
@@ -283,7 +328,7 @@ export default function IdeaDetail() {
                   >
                     {ttsGenerating ? "生成中..." : ttsUrl ? "重新生成语音" : "生成语音"}
                   </button>
-                  {!isPublished && (
+                  {isReviewing && (
                     <button
                       onClick={async () => { setError(""); await rejectReview(idea.id, "video"); load(); }}
                       className="text-xs text-gray-400 hover:text-red-500 transition"
@@ -306,7 +351,7 @@ export default function IdeaDetail() {
             </div>
           )}
 
-          {!isPublished && (
+          {isReviewing && (
             <div>
               <button
                 onClick={async () => {

@@ -4,6 +4,7 @@ export const STATUS_LABELS: Record<string, string> = {
   approved: "已通过",
   in_production: "生产中",
   completed: "待发布",
+  review: "审核中",
   published: "已发布",
   rejected: "已驳回",
 };
