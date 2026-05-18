@@ -5,8 +5,7 @@ Supports variable injection: {track_display}, {tone_name}, {idea}.
 
 import os
 import json
-import yaml
-from app.core.config import PROMPTS_DIR, SCHEMAS_DIR, CONFIG_DIR
+from app.core.config import PROMPTS_DIR, SCHEMAS_DIR
 
 
 def _read(path: str) -> str:
@@ -24,21 +23,14 @@ def load_rules() -> str:
     return _read(os.path.join(PROMPTS_DIR, "rules.md"))
 
 
-def load_tone_prompt(tone_slug: str) -> str:
-    """Load a specific tone prompt by its slug (e.g. 'gentle_comfort')."""
-    path = os.path.join(PROMPTS_DIR, "tones", f"{tone_slug}.md")
-    if not os.path.exists(path):
-        # Fallback: try to find by Chinese name
-        tone_map = {
-            "温柔抚慰": "gentle_comfort",
-            "清醒共情": "clear_empathy",
-            "社会观察": "social_observe",
-            "心理科普": "psych_science",
-        }
-        slug = tone_map.get(tone_slug, "gentle_comfort")
-        path = os.path.join(PROMPTS_DIR, "tones", f"{slug}.md")
+def load_value_judge_prompt() -> str:
+    """Load the dedicated value-judgment system prompt."""
+    return _read(os.path.join(PROMPTS_DIR, "value_judge.md"))
 
-    return _read(path)
+
+def load_tone_prompt(tone_slug: str) -> str:
+    """DEPRECATED: Tone system removed. Kept for backward compat; returns empty."""
+    return ""
 
 
 def load_output_schema() -> dict:
@@ -50,35 +42,56 @@ def load_output_schema() -> dict:
 def assemble_value_judge_prompt(
     idea: str,
     search_results: str | None = None,
-) -> str:
-    """Assemble the full prompt for value judgment (Gate 1).
+) -> tuple[str, str]:
+    """Assemble the value-judgment prompt (Gate 1).
 
-    Args:
-        search_results: Pre-formatted search results string (from Tavily),
-                        or None if search failed.
+    Returns:
+        (system_prompt, user_prompt) — system is value_judge.md verbatim,
+        user contains search context + idea + the required output schema.
     """
-    schema = load_output_schema()
-    score_schema = schema["properties"]["score"]
+    system_prompt = load_value_judge_prompt()
 
-    search_block = ""
     if search_results:
-        search_block = f"""
-【竞品搜索结查】
-{search_results}
-"""
+        search_block = (
+            "【全网搜索到的竞品内容】\n"
+            "以下是全网搜索到的竞品内容，请仔细分析它们的角度、套路与盲区，"
+            "并在 dimensions 与 competitive_analysis 中引用具体条目作为依据。\n\n"
+            f"{search_results}"
+        )
     else:
-        search_block = "\n（本次未获取到搜索数据，请基于你的知识判断）\n"
+        search_block = (
+            "【搜索数据】\n"
+            "（本次未获取到搜索数据，请基于你的知识判断；"
+            "并在 competitive_analysis 中明确声明数据缺失。）"
+        )
 
-    return f"""你是中文资深内容研究员。请评估以下内容点子的价值。
+    output_schema = """{
+  "overall": 65,
+  "verdict": "一句话判断",
+  "dimensions": {
+    "originality":      {"score": 70, "plus": ["..."], "minus": ["..."]},
+    "audience_appeal":  {"score": 65, "plus": ["..."], "minus": ["..."]},
+    "content_richness": {"score": 60, "plus": ["..."], "minus": ["..."]},
+    "timeliness":       {"score": 75, "plus": ["..."], "minus": ["..."]},
+    "feasibility":      {"score": 80, "plus": ["..."], "minus": ["..."]}
+  },
+  "competitive_analysis": "对比竞品内容的具体分析，2-3 句话",
+  "advice": "如何改进这个点子的具体建议，2-3 句话"
+}"""
 
-{load_rules()}
-{search_block}
-【用户的想法】
+    user_prompt = f"""{search_block}
+
+【用户的内容点子】
 {idea}
 
-请基于{"搜索结果和" if search_results else ""}你的专业知识，只输出 score 部分的 JSON（严格 JSON，不要 markdown 围栏）：
-{json.dumps(score_schema, ensure_ascii=False, indent=2)}
+请按照系统提示中的五个维度逐项评估，每个维度都必须给出 score、plus、minus，
+并最终汇总 overall、verdict、competitive_analysis、advice。
+
+严格输出以下 JSON 结构（不要 markdown 围栏，不要任何额外文字）：
+{output_schema}
 """
+
+    return system_prompt, user_prompt
 
 
 def assemble_content_production_prompt(

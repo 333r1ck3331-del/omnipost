@@ -89,6 +89,7 @@ async def _call_claude(prompt: str, system_prompt: str | None = None) -> dict:
         "model": LLM_MODEL,
         "max_tokens": 8000,
         "messages": messages,
+        "thinking": {"type": "disabled"},  # Disable extended thinking to avoid thinking blocks
     }
     if system_prompt:
         body["system"] = system_prompt
@@ -110,7 +111,12 @@ async def _call_claude(prompt: str, system_prompt: str | None = None) -> dict:
         raise LLMError(f"Claude API 错误 ({resp.status_code}): {resp.text[:300]}")
 
     data = resp.json()
-    content = data["content"][0]["text"]
+    # Handle Claude's extended thinking: find the text content block
+    content_blocks = data.get("content", [])
+    text_block = next((b for b in content_blocks if b.get("type") == "text"), None)
+    if not text_block:
+        raise LLMError(f"Claude 返回无文本内容: {json.dumps(content_blocks, ensure_ascii=False)[:200]}")
+    content = text_block["text"]
     usage = data.get("usage", {})
 
     return {

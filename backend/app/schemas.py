@@ -58,10 +58,6 @@ class IdeaSummary(BaseModel):
         from_attributes = True
 
 
-class IdeaListResponse(BaseModel):
-    items: list[IdeaSummary]
-    total: int
-
 
 class IdeaDetail(BaseModel):
     id: str

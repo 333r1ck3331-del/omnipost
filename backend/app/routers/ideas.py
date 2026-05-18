@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.models import ContentItem
 from app.schemas import (
     IdeaCreate, ProduceRequest, BriefRequest, ReviewEdit, ReviewReject, PublishAction,
-    IdeaSummary, IdeaDetail, IdeaListResponse, Gate1Response, ProduceStatus, TitleOptimizeResponse,
+    IdeaSummary, IdeaDetail, IdeaListResponse, TitleOptimizeResponse,
 )
 from app.services.agents import run_value_judge, run_content_production, run_title_optimization
 from app.services.tts import generate_speech, TTSError
@@ -248,7 +248,7 @@ async def optimize_titles(idea_id: str, db: AsyncSession = Depends(get_db)):
     """Generate 3 alternative titles for the idea content."""
     item = await _get_or_404(idea_id, db)
     existing = json.loads(item.title_suggestions) if item.title_suggestions else []
-    result = await run_title_optimization(item.idea_text, item.track, item.tone, existing)
+    result = await run_title_optimization(item.idea_text, existing)
     return TitleOptimizeResponse(titles=result["titles"])
 
 

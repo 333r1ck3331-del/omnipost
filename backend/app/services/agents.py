@@ -27,8 +27,7 @@ async def run_value_judge(idea: str) -> dict:
     search_text = None
     search_used = False
     try:
-        query = idea
-        results = await search_competitors(query, max_results=5)
+        results = await search_competitors(idea, max_results=5)
         if results:
             search_text = format_search_results(results)
             search_used = True
