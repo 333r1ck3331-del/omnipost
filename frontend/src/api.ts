@@ -11,6 +11,7 @@ export interface Idea {
   content_gzh: string | null;
   content_xhs: string | null;
   content_video_script: string | null;
+  content_bilibili: string | null;
   title_suggestions: string[] | null;
   final_content: any;
   publish_url: string | null;

@@ -18,6 +18,7 @@ export default function IdeaDetail() {
   const [editGzh, setEditGzh] = useState("");
   const [editXhs, setEditXhs] = useState("");
   const [editVideo, setEditVideo] = useState("");
+  const [editBilibili, setEditBilibili] = useState("");
   const [optTitles, setOptTitles] = useState<string[]>([]);
   const [optimizing, setOptimizing] = useState(false);
   const [ttsUrl, setTtsUrl] = useState("");
@@ -33,6 +34,7 @@ export default function IdeaDetail() {
       setEditGzh(data.content_gzh || "");
       setEditXhs(data.content_xhs || "");
       setEditVideo(data.content_video_script || "");
+      setEditBilibili(data.content_bilibili || "");
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -351,6 +353,27 @@ export default function IdeaDetail() {
             </div>
           )}
 
+          {editBilibili && (
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-xs text-gray-400">B站视频</h3>
+                {isReviewing && (
+                  <button
+                    onClick={async () => { setError(""); await rejectReview(idea.id, "bilibili"); load(); }}
+                    className="text-xs text-gray-400 hover:text-red-500 transition"
+                  >
+                    重做
+                  </button>
+                )}
+              </div>
+              <textarea
+                value={editBilibili}
+                onChange={(e) => setEditBilibili(e.target.value)}
+                className="w-full min-h-[200px] text-sm p-4 bg-white border border-gray-100 rounded resize-y focus:outline-none focus:border-gray-300 font-mono text-xs leading-relaxed"
+              />
+            </div>
+          )}
+
           {isReviewing && (
             <div>
               <button
@@ -360,6 +383,7 @@ export default function IdeaDetail() {
                     content_gzh: editGzh,
                     content_xhs: editXhs,
                     content_video_script: editVideo,
+                    content_bilibili: editBilibili,
                   });
                   await approveReview(idea.id);
                   load();
@@ -424,6 +448,27 @@ export default function IdeaDetail() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* B站 distribution */}
+                {p.bilibili && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">B站</h3>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>📂 分区：{p.bilibili.partition}</p>
+                      <p>🕐 {p.bilibili.best_publish_time}</p>
+                      {p.bilibili.title_options && <p>📝 标题：{p.bilibili.title_options.join(" / ")}</p>}
+                      {p.bilibili.cover && <p>🖼 封面：{p.bilibili.cover.text}（{p.bilibili.cover.style}）</p>}
+                      {p.bilibili.tags && <p>🏷 {p.bilibili.tags.join(" · ")}</p>}
+                      {p.bilibili.danmaku_hooks?.length > 0 && <p>💬 弹幕触发：{p.bilibili.danmaku_hooks.join(" / ")}</p>}
+                      {p.bilibili.interaction_hook && <p>❓ {p.bilibili.interaction_hook}</p>}
+                      {p.bilibili.sanchang_strategy && <p>🔔 {p.bilibili.sanchang_strategy}</p>}
+                      {p.bilibili.boost && (
+                        <p>💰 起飞：{p.bilibili.boost.recommend ? "推荐" : "不推荐"} {p.bilibili.boost.budget ? `· ${p.bilibili.boost.budget}` : ""} · {p.bilibili.boost.reason}</p>
+                      )}
+                      {p.bilibili.series_bridge && <p>🔗 {p.bilibili.series_bridge}</p>}
                     </div>
                   </div>
                 )}

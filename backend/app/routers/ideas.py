@@ -142,6 +142,7 @@ async def produce_content(
         item.content_gzh = result.get("content_gzh")
         item.content_xhs = result.get("content_xhs")
         item.content_video_script = result.get("content_video_script")
+        item.content_bilibili = result.get("content_bilibili")
         item.title_suggestions = json.dumps(result.get("title_suggestions"), ensure_ascii=False)
         item.production_raw = json.dumps(result.get("production_raw"), ensure_ascii=False)
         item.status = "review"
@@ -172,6 +173,8 @@ async def edit_review(idea_id: str, body: ReviewEdit, db: AsyncSession = Depends
         item.content_xhs = body.content_xhs
     if body.content_video_script is not None:
         item.content_video_script = body.content_video_script
+    if body.content_bilibili is not None:
+        item.content_bilibili = body.content_bilibili
     if body.final_content is not None:
         item.final_content = json.dumps(body.final_content, ensure_ascii=False)
 
@@ -203,6 +206,7 @@ async def approve_review(idea_id: str, db: AsyncSession = Depends(get_db)):
             content_gzh=item.content_gzh,
             content_xhs=item.content_xhs,
             content_video_script=item.content_video_script,
+            content_bilibili=item.content_bilibili,
         )
         item.distribution_strategy = json.dumps(dist_result["strategy"], ensure_ascii=False)
     except Exception as e:
@@ -235,6 +239,8 @@ async def reject_review(idea_id: str, body: ReviewReject, db: AsyncSession = Dep
             item.content_xhs = result.get("content_xhs")
         elif body.retry_type == "video":
             item.content_video_script = result.get("content_video_script")
+        elif body.retry_type == "bilibili":
+            item.content_bilibili = result.get("content_bilibili")
 
         item.status = "completed"
     except Exception as e:
@@ -323,6 +329,7 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
         content_gzh=item.content_gzh,
         content_xhs=item.content_xhs,
         content_video_script=item.content_video_script,
+        content_bilibili=item.content_bilibili,
         title_suggestions=_json(item.title_suggestions),
         final_content=_json(item.final_content),
         publish_url=item.publish_url,

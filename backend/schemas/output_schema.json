@@ -54,8 +54,8 @@
     },
     "scripts": {
       "type": "object",
-      "description": "三平台内容——核心产出",
-      "required": ["douyin", "xiaohongshu", "gongzhonghao"],
+      "description": "四平台内容——核心产出",
+      "required": ["douyin", "xiaohongshu", "gongzhonghao", "bilibili"],
       "properties": {
         "douyin": {
           "type": "object",
@@ -120,6 +120,43 @@
             },
             "ending": { "type": "string" },
             "estimated_words": { "type": "string", "example": "约 1800 字" }
+          }
+        },
+        "bilibili": {
+          "type": "object",
+          "description": "B站中长视频脚本，3-10分钟，横屏16:9",
+          "properties": {
+            "title": { "type": "string", "description": "标题，20-30字" },
+            "duration": { "type": "string", "example": "6分30秒" },
+            "partition": { "type": "string", "description": "推荐分区" },
+            "chapters": {
+              "type": "array",
+              "description": "章节分段",
+              "items": {
+                "type": "object",
+                "required": ["title", "time_range", "shots"],
+                "properties": {
+                  "title": { "type": "string", "description": "章节标题" },
+                  "time_range": { "type": "string", "example": "0:00-2:30" },
+                  "shots": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["time", "visual", "narration"],
+                      "properties": {
+                        "time": { "type": "string", "example": "0:00-0:30" },
+                        "visual": { "type": "string", "description": "画面/镜头/素材" },
+                        "narration": { "type": "string", "description": "口播文案" },
+                        "danmaku_anticipate": { "type": "string", "description": "预判弹幕反应" },
+                        "subtitle": { "type": "string", "description": "字幕/特效" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "ending": { "type": "string", "description": "结尾总结+三连引导+下期预告" },
+            "cover_suggestion": { "type": "string", "description": "封面建议" }
           }
         }
       }

@@ -34,6 +34,7 @@ class ContentItem(Base):
     content_gzh = Column(Text, nullable=True)
     content_xhs = Column(Text, nullable=True)
     content_video_script = Column(Text, nullable=True)
+    content_bilibili = Column(Text, nullable=True)
     title_suggestions = Column(Text, nullable=True)
     production_raw = Column(Text, nullable=True)
     final_content = Column(Text, nullable=True)

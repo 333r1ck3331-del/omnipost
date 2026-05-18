@@ -9,11 +9,12 @@ export const STATUS_LABELS: Record<string, string> = {
   rejected: "已驳回",
 };
 
-export const CONTENT_TYPES = ["gzh", "xhs", "video"] as const;
+export const CONTENT_TYPES = ["gzh", "xhs", "video", "bilibili"] as const;
 export type ContentType = (typeof CONTENT_TYPES)[number];
 
 export const TYPE_LABELS: Record<string, string> = {
   gzh: "公众号",
   xhs: "小红书",
   video: "视频脚本",
+  bilibili: "B站视频",
 };

@@ -31,6 +31,7 @@ class ReviewEdit(BaseModel):
     content_gzh: Optional[str] = None
     content_xhs: Optional[str] = None
     content_video_script: Optional[str] = None
+    content_bilibili: Optional[str] = None
     final_content: Optional[dict] = None
 
 
@@ -70,6 +71,7 @@ class IdeaDetail(BaseModel):
     content_gzh: Optional[str] = None
     content_xhs: Optional[str] = None
     content_video_script: Optional[str] = None
+    content_bilibili: Optional[str] = None
     title_suggestions: Optional[list] = None
     final_content: Optional[dict] = None
     publish_url: Optional[str] = None

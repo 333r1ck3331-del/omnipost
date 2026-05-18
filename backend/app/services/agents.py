@@ -166,6 +166,19 @@ async def run_content_production(
                 script_lines.append(f"[{s.get('time', '')}] {s.get('narration', '')}")
             content_video_script = "\n".join(script_lines) if script_lines else json.dumps(douyin, ensure_ascii=False)
 
+    if selected_types is None or "bilibili" in selected_types:
+        bili = scripts.get("bilibili", {})
+        if bili:
+            parts = [f"标题: {bili.get('title', '')}", f"时长: {bili.get('duration', '')}", f"分区: {bili.get('partition', '')}", ""]
+            for ch in bili.get("chapters", []):
+                parts.append(f"\n## {ch.get('title', '')} ({ch.get('time_range', '')})")
+                for shot in ch.get("shots", []):
+                    dm = shot.get('danmaku_anticipate', '')
+                    dm_str = f" [弹幕预判: {dm}]" if dm else ""
+                    parts.append(f"[{shot.get('time', '')}] {shot.get('narration', '')}{dm_str}")
+            parts.append(f"\n结尾: {bili.get('ending', '')}")
+            content_bilibili = "\n".join(parts)
+
     # Extract titles
     for t in titles:
         if isinstance(t, dict):
@@ -175,6 +188,7 @@ async def run_content_production(
         "content_gzh": content_gzh,
         "content_xhs": content_xhs,
         "content_video_script": content_video_script,
+        "content_bilibili": content_bilibili,
         "title_suggestions": title_suggestions,
         "production_raw": data,
         "token_usage": result.get("usage"),
@@ -238,6 +252,7 @@ async def run_distribution_strategy(
     content_gzh: str | None = None,
     content_xhs: str | None = None,
     content_video_script: str | None = None,
+    content_bilibili: str | None = None,
 ) -> dict:
     """Generate multi-platform distribution strategy after content is approved.
 
@@ -260,6 +275,9 @@ async def run_distribution_strategy(
     if content_video_script:
         preview = content_video_script[:300] + ("..." if len(content_video_script) > 300 else "")
         content_summary_parts.append(f"\n【视频脚本摘要】\n{preview}")
+    if content_bilibili:
+        preview = content_bilibili[:300] + ("..." if len(content_bilibili) > 300 else "")
+        content_summary_parts.append(f"\n【B站脚本摘要】\n{preview}")
 
     content_summary = "\n".join(content_summary_parts)
 
