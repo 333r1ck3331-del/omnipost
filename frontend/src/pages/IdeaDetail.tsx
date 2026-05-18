@@ -373,8 +373,106 @@ export default function IdeaDetail() {
         </section>
       )}
 
+      {/* Distribution Strategy — shows after review approval */}
+      {isCompleted && idea.distribution_strategy && !idea.distribution_strategy.error && (
+        <section className="mb-16">
+          <h2 className="text-xs text-gray-400 tracking-wider mb-6">投放策略</h2>
+          {(() => {
+            const ds = idea.distribution_strategy;
+            const p = ds.platforms || {};
+            return (
+              <div className="space-y-8">
+                {/* Platform-specific */}
+                {p.gongzhonghao && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">公众号</h3>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>🕐 {p.gongzhonghao.best_publish_time}</p>
+                      <p>📋 {p.gongzhonghao.publish_rhythm}</p>
+                      {p.gongzhonghao.share_copy && <p>💬 转发文案：{p.gongzhonghao.share_copy}</p>}
+                      {p.gongzhonghao.interaction_hook && <p>❓ {p.gongzhonghao.interaction_hook}</p>}
+                    </div>
+                  </div>
+                )}
+                {p.xiaohongshu && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">小红书</h3>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>🕐 {p.xiaohongshu.best_publish_time}</p>
+                      {p.xiaohongshu.cover && <p>🖼 封面：{p.xiaohongshu.cover.text}（{p.xiaohongshu.cover.style}）</p>}
+                      {p.xiaohongshu.tags && <p>🏷 {p.xiaohongshu.tags.join(" · ")}</p>}
+                      {p.xiaohongshu.interaction_hook && <p>❓ {p.xiaohongshu.interaction_hook}</p>}
+                      {p.xiaohongshu.boost_advice && <p>📢 {p.xiaohongshu.boost_advice}</p>}
+                    </div>
+                  </div>
+                )}
+                {p.douyin && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">抖音</h3>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>🕐 {p.douyin.best_publish_time}</p>
+                      {p.douyin.music_style && <p>🎵 {p.douyin.music_style}</p>}
+                      {p.douyin.tags && <p>🏷 {p.douyin.tags.join(" · ")}</p>}
+                      {p.douyin.dou_plus && (
+                        <p>💰 Dou+：{p.douyin.dou_plus.recommend ? "推荐" : "不推荐"} {p.douyin.dou_plus.budget ? `· ${p.douyin.dou_plus.budget}` : ""} · {p.douyin.dou_plus.reason}</p>
+                      )}
+                      {p.douyin.seed_comments?.length > 0 && (
+                        <div>
+                          <p className="text-xs text-gray-400 mt-1">预埋评论：</p>
+                          {p.douyin.seed_comments.map((c: string, i: number) => (
+                            <p key={i} className="text-xs text-gray-500 pl-3">💬 {c}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Audience layers */}
+                {ds.audience_layers && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">受众分层</h3>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      {ds.audience_layers.core && <p>🎯 核心：{ds.audience_layers.core}</p>}
+                      {ds.audience_layers.extend && <p>📡 外延：{ds.audience_layers.extend}</p>}
+                      {ds.audience_layers.avoid && <p>⚠️ 避开：{ds.audience_layers.avoid}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Risk */}
+                {ds.risk_warning && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">风险预警</h3>
+                    <p className="text-sm text-gray-600">{ds.risk_warning}</p>
+                  </div>
+                )}
+
+                {/* Series potential */}
+                {ds.series_potential && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">系列化潜力</h3>
+                    <p className="text-sm text-gray-600">
+                      {ds.series_potential.suitable ? "✅ 适合系列化" : "❌ 不适合系列化"}
+                      {ds.series_potential.reason && ` · ${ds.series_potential.reason}`}
+                    </p>
+                    {ds.series_potential.follow_up_topics?.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {ds.series_potential.follow_up_topics.map((t: string, i: number) => (
+                          <li key={i} className="text-xs text-gray-500 pl-3">→ {t}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </section>
+      )}
+
       {/* Publish */}
-      {isCompleted && !isPublished && (
+      {isCompleted && idea.distribution_strategy && !isPublished && (
         <section className="mb-16">
           <h2 className="text-xs text-gray-400 tracking-wider mb-6">发布</h2>
           <button

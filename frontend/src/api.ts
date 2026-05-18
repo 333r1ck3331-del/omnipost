@@ -15,6 +15,7 @@ export interface Idea {
   final_content: any;
   publish_url: string | null;
   notes: string | null;
+  distribution_strategy: any;
   created_at: string;
   updated_at: string;
 }

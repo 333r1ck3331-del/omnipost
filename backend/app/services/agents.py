@@ -7,6 +7,7 @@ from app.services.llm import call_llm, parse_json_response, LLMError
 from app.services.prompt_loader import (
     assemble_value_judge_prompt,
     assemble_content_production_prompt,
+    load_distribution_prompt,
 )
 from app.services.search import search_competitors, format_search_results, SearchError, fetch_urls, format_url_content
 
@@ -228,5 +229,55 @@ async def run_title_optimization(
 
     return {
         "titles": titles[:3],
+        "token_usage": result.get("usage"),
+    }
+
+
+async def run_distribution_strategy(
+    idea: str,
+    content_gzh: str | None = None,
+    content_xhs: str | None = None,
+    content_video_script: str | None = None,
+) -> dict:
+    """Generate multi-platform distribution strategy after content is approved.
+
+    Called automatically after review approval. Analyzes the approved content
+    and generates platform-specific publishing recommendations.
+
+    Returns:
+        {"strategy": dict, "token_usage": dict}
+    """
+    system = load_distribution_prompt()
+
+    # Build content summary for the prompt
+    content_summary_parts = [f"【内容主题】\n{idea}"]
+    if content_gzh:
+        preview = content_gzh[:500] + ("..." if len(content_gzh) > 500 else "")
+        content_summary_parts.append(f"\n【公众号内容摘要】\n{preview}")
+    if content_xhs:
+        preview = content_xhs[:300] + ("..." if len(content_xhs) > 300 else "")
+        content_summary_parts.append(f"\n【小红书内容摘要】\n{preview}")
+    if content_video_script:
+        preview = content_video_script[:300] + ("..." if len(content_video_script) > 300 else "")
+        content_summary_parts.append(f"\n【视频脚本摘要】\n{preview}")
+
+    content_summary = "\n".join(content_summary_parts)
+
+    user_prompt = f"""{content_summary}
+
+请基于以上已审核通过的内容，生成完整的多平台投放策略。
+
+严格输出 JSON（不要 markdown 围栏）："""
+
+    result = await call_llm(user_prompt, system_prompt=system)
+    raw = result["content"]
+
+    try:
+        data = parse_json_response(raw)
+    except json.JSONDecodeError:
+        raise LLMError("投放策略生成格式异常，请重试。")
+
+    return {
+        "strategy": data,
         "token_usage": result.get("usage"),
     }

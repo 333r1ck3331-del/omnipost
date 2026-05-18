@@ -12,7 +12,7 @@ from app.schemas import (
     IdeaCreate, ProduceRequest, BriefRequest, ReviewEdit, ReviewReject, PublishAction,
     IdeaSummary, IdeaDetail, IdeaListResponse, TitleOptimizeResponse,
 )
-from app.services.agents import run_value_judge, run_content_production, run_title_optimization
+from app.services.agents import run_value_judge, run_content_production, run_title_optimization, run_distribution_strategy
 from app.services.tts import generate_speech, TTSError
 
 logger = logging.getLogger(__name__)
@@ -195,8 +195,23 @@ async def approve_review(idea_id: str, db: AsyncSession = Depends(get_db)):
         }, ensure_ascii=False)
 
     item.status = "completed"
+
+    # Auto-generate distribution strategy
+    try:
+        dist_result = await run_distribution_strategy(
+            idea=item.idea_text,
+            content_gzh=item.content_gzh,
+            content_xhs=item.content_xhs,
+            content_video_script=item.content_video_script,
+        )
+        item.distribution_strategy = json.dumps(dist_result["strategy"], ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Distribution strategy failed: {e}")
+        # Don't block review approval — save error note
+        item.distribution_strategy = json.dumps({"error": str(e)}, ensure_ascii=False)
+
     await db.commit()
-    return {"status": "ok", "message": "审核通过，可以发布"}
+    return {"status": "ok", "message": "审核通过，可以发布", "distribution_ready": item.distribution_strategy is not None}
 
 
 @router.post("/{idea_id}/review/reject")
@@ -312,6 +327,7 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
         final_content=_json(item.final_content),
         publish_url=item.publish_url,
         notes=item.notes,
+        distribution_strategy=_json(item.distribution_strategy),
         created_at=item.created_at.isoformat() if item.created_at else "",
         updated_at=item.updated_at.isoformat() if item.updated_at else "",
     )

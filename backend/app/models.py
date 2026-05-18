@@ -42,6 +42,9 @@ class ContentItem(Base):
     publish_url = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
 
+    # Distribution strategy — generated after review approval
+    distribution_strategy = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 

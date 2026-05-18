@@ -74,6 +74,7 @@ class IdeaDetail(BaseModel):
     final_content: Optional[dict] = None
     publish_url: Optional[str] = None
     notes: Optional[str] = None
+    distribution_strategy: Optional[object] = None
     created_at: str
     updated_at: str
 

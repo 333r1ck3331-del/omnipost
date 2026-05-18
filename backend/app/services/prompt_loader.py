@@ -28,6 +28,11 @@ def load_value_judge_prompt() -> str:
     return _read(os.path.join(PROMPTS_DIR, "value_judge.md"))
 
 
+def load_distribution_prompt() -> str:
+    """Load the distribution strategy system prompt."""
+    return _read(os.path.join(PROMPTS_DIR, "distribution.md"))
+
+
 def load_tone_prompt(tone_slug: str) -> str:
     """DEPRECATED: Tone system removed. Kept for backward compat; returns empty."""
     return ""
