@@ -8,9 +8,12 @@
 
 ## 当前位置
 
-**正在做**：步骤 0 完成，准备开始 **A（拆分 system.md）**
-**最近 commit**：`a297b15` Phase 1: 配图/分镜增强
+**正在做**：步骤 0 完成，**A 已跳过**（ROI 不足），准备开始 **F（加集成测试）**
+**最近 commit**：`47de8b5` 重构进度跟踪文档
 **Phase 1 联测**：⏸ 暂停（重构完成后一并验证）
+
+### 决策记录
+- **跳过 A 的理由**：实测后发现 Gate1 已用独立 prompt（value_judge.md），output_schema 已按平台过滤。system.md 拆分实际只能省 ~27% 单平台生产 token（之前估算 60% 是错的），LLM 内容质量不会改善，且有"prompt 拼接顺序变动导致 LLM 行为漂移"的小风险。投入产出比不如 B/C。
 
 ---
 
@@ -19,8 +22,8 @@
 | 步骤 | 内容 | 预估 | 状态 | Commit |
 |---|---|---|---|---|
 | 0 | Git commit Phase 1 改动 + 写进度文档 | 10min | ✅ | a297b15 |
-| A | 拆 system.md → 多 prompt 模板（gate1/production_gzh/production_xhs/production_video） | 半天 | ⏳ pending | — |
-| F | 加 3-5 个核心 API 集成测试（pytest + httpx） | 半天 | ⏳ pending | — |
+| A | 拆 system.md → 多 prompt 模板 | 半天 | ⏸ 跳过 | — |
+| F | 加 3-5 个核心 API 集成测试（pytest + httpx） | 半天 | ✅ | (next) |
 | B | ideas.py 业务逻辑下沉到 services/idea_workflow.py | 1 天 | ⏳ pending | — |
 | C | IdeaDetail.tsx 拆 Gate1Panel/ProductionPanel/ReviewPanel | 半天 | ⏳ pending | — |
 | Z | Phase 1 端到端联测 | 0.5h | ⏳ pending | — |
