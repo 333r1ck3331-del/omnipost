@@ -97,11 +97,11 @@ def _mock_llm(monkeypatch):
     monkeypatch.setattr(agents_module, "run_distribution_strategy", _fake_distribution)
     monkeypatch.setattr(agents_module, "run_title_optimization", _fake_title_optimization)
 
-    from app.routers import ideas as ideas_router
-    monkeypatch.setattr(ideas_router, "run_value_judge", _fake_value_judge)
-    monkeypatch.setattr(ideas_router, "run_content_production", _fake_production)
-    monkeypatch.setattr(ideas_router, "run_distribution_strategy", _fake_distribution)
-    monkeypatch.setattr(ideas_router, "run_title_optimization", _fake_title_optimization)
+    from app.services import idea_workflow as wf
+    monkeypatch.setattr(wf, "run_value_judge", _fake_value_judge)
+    monkeypatch.setattr(wf, "run_content_production", _fake_production)
+    monkeypatch.setattr(wf, "run_distribution_strategy", _fake_distribution)
+    monkeypatch.setattr(wf, "run_title_optimization", _fake_title_optimization)
 
 
 @pytest_asyncio.fixture

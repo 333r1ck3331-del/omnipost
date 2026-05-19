@@ -24,7 +24,7 @@
 | 0 | Git commit Phase 1 改动 + 写进度文档 | 10min | ✅ | a297b15 |
 | A | 拆 system.md → 多 prompt 模板 | 半天 | ⏸ 跳过 | — |
 | F | 加 3-5 个核心 API 集成测试（pytest + httpx） | 半天 | ✅ | (next) |
-| B | ideas.py 业务逻辑下沉到 services/idea_workflow.py | 1 天 | ⏳ pending | — |
+| B | ideas.py 业务逻辑下沉到 services/idea_workflow.py | 1 天 | ✅ | (next) |
 | C | IdeaDetail.tsx 拆 Gate1Panel/ProductionPanel/ReviewPanel | 半天 | ⏳ pending | — |
 | Z | Phase 1 端到端联测 | 0.5h | ⏳ pending | — |
 
