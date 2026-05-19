@@ -3,22 +3,58 @@
   "title": "OmniPost Content Package",
   "description": "精简版内容包输出结构 — 聚焦内容生产，去掉运营字段",
   "type": "object",
-  "required": ["score", "evidence_pool", "titles", "scripts"],
+  "required": [
+    "score",
+    "evidence_pool",
+    "titles",
+    "scripts"
+  ],
   "properties": {
     "score": {
       "type": "object",
       "description": "自评分——写完内容后对自己的评估",
-      "required": ["overall", "ai_trace"],
+      "required": [
+        "overall",
+        "ai_trace"
+      ],
       "properties": {
-        "overall": { "type": "integer", "minimum": 0, "maximum": 100, "description": "综合自评" },
+        "overall": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "综合自评"
+        },
         "ai_trace": {
           "type": "object",
           "description": "AI 痕迹自检——必须逐项完成，否则内容判作废",
-          "required": ["score", "detected_patterns", "verdict"],
+          "required": [
+            "score",
+            "detected_patterns",
+            "verdict"
+          ],
           "properties": {
-            "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "AI 痕迹严重程度，越低越好" },
-            "detected_patterns": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "发现的 AI 痕迹模式。如确实无痕迹，填 '无明显AI痕迹' 并说明理由" },
-            "verdict": { "type": "string", "enum": ["轻微", "中度", "严重"] }
+            "score": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "AI 痕迹严重程度，越低越好"
+            },
+            "detected_patterns": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              },
+              "description": "发现的 AI 痕迹模式。如确实无痕迹，填 '无明显AI痕迹' 并说明理由"
+            },
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "轻微",
+                "中度",
+                "严重"
+              ]
+            }
           }
         }
       }
@@ -28,13 +64,44 @@
       "description": "本文引用的证据库。每一条必须真实存在，且必须在 scripts 中实际使用。",
       "items": {
         "type": "object",
-        "required": ["type", "title", "source", "detail", "usage"],
+        "required": [
+          "type",
+          "title",
+          "source",
+          "detail",
+          "usage"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["心理学概念", "社会学研究", "历史典故", "文学作品", "真实案例", "经典实验", "电影场景", "个人观察", "数据报告"] },
-          "title": { "type": "string", "description": "具体名称" },
-          "source": { "type": "string", "description": "出处/提出者+年代" },
-          "detail": { "type": "string", "description": "详细说明，3-4 句" },
-          "usage": { "type": "string", "description": "本文如何使用这个素材" }
+          "type": {
+            "type": "string",
+            "enum": [
+              "心理学概念",
+              "社会学研究",
+              "历史典故",
+              "文学作品",
+              "真实案例",
+              "经典实验",
+              "电影场景",
+              "个人观察",
+              "数据报告"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "具体名称"
+          },
+          "source": {
+            "type": "string",
+            "description": "出处/提出者+年代"
+          },
+          "detail": {
+            "type": "string",
+            "description": "详细说明，3-4 句"
+          },
+          "usage": {
+            "type": "string",
+            "description": "本文如何使用这个素材"
+          }
         }
       },
       "minItems": 2
@@ -46,118 +113,533 @@
       "maxItems": 3,
       "items": {
         "type": "object",
-        "required": ["type", "text"],
+        "required": [
+          "type",
+          "text"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["情绪共鸣型", "洞察金句型", "好奇引导型"] },
-          "text": { "type": "string", "maxLength": 30 }
+          "type": {
+            "type": "string",
+            "enum": [
+              "情绪共鸣型",
+              "洞察金句型",
+              "好奇引导型"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 30
+          }
         }
       }
     },
     "scripts": {
       "type": "object",
       "description": "四平台内容——核心产出",
-      "required": ["douyin", "xiaohongshu", "gongzhonghao", "bilibili"],
+      "required": [
+        "douyin",
+        "xiaohongshu",
+        "gongzhonghao",
+        "bilibili"
+      ],
       "properties": {
         "douyin": {
           "type": "object",
           "properties": {
-            "total_duration": { "type": "string", "example": "75秒" },
-            "music_mood": { "type": "string", "description": "配乐氛围" },
+            "total_duration": {
+              "type": "string",
+              "example": "75秒"
+            },
+            "music_mood": {
+              "type": "string",
+              "description": "配乐氛围"
+            },
             "shots": {
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["time", "visual", "narration", "subtitle"],
+                "required": [
+                  "time",
+                  "visual",
+                  "narration",
+                  "subtitle"
+                ],
                 "properties": {
-                  "time": { "type": "string", "example": "0-3s" },
-                  "visual": { "type": "string", "description": "画面描述" },
-                  "narration": { "type": "string", "description": "口播文案" },
-                  "subtitle": { "type": "string", "description": "字幕文案" },
-                  "camera": { "type": "string", "description": "运镜方式" },
-                  "transition": { "type": "string", "description": "转场方式" }
+                  "time": {
+                    "type": "string",
+                    "example": "0-3s"
+                  },
+                  "visual": {
+                    "type": "string",
+                    "description": "画面描述"
+                  },
+                  "narration": {
+                    "type": "string",
+                    "description": "口播文案"
+                  },
+                  "subtitle": {
+                    "type": "string",
+                    "description": "字幕文案"
+                  },
+                  "camera": {
+                    "type": "string",
+                    "description": "运镜方式"
+                  },
+                  "transition": {
+                    "type": "string",
+                    "description": "转场方式"
+                  }
                 }
               }
             },
-            "ending_hook": { "type": "string", "description": "结尾互动引导" }
+            "ending_hook": {
+              "type": "string",
+              "description": "结尾互动引导"
+            }
           }
         },
         "xiaohongshu": {
           "type": "object",
           "properties": {
-            "title": { "type": "string" },
-            "cover_text": { "type": "string", "description": "封面大字，6-12字" },
-            "body": { "type": "string", "description": "正文，250-400字，用换行分段。必须织入 evidence_pool 中至少 1 个真实素材" },
-            "tags": { "type": "array", "items": { "type": "string" }, "maxItems": 5 }
+            "title": {
+              "type": "string"
+            },
+            "cover_text": {
+              "type": "string",
+              "description": "封面大字，6-12字"
+            },
+            "body": {
+              "type": "string",
+              "description": "正文，250-400字，用换行分段。必须织入 evidence_pool 中至少 1 个真实素材"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 5
+            }
           }
         },
         "gongzhonghao": {
           "type": "object",
           "properties": {
-            "title": { "type": "string", "maxLength": 22 },
-            "subtitle": { "type": "string", "description": "副标题" },
+            "title": {
+              "type": "string",
+              "maxLength": 22
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "副标题"
+            },
             "blocks": {
               "type": "array",
               "items": {
                 "oneOf": [
                   {
                     "type": "object",
-                    "required": ["type", "content"],
+                    "required": [
+                      "type",
+                      "content"
+                    ],
                     "properties": {
-                      "type": { "const": "text" },
-                      "content": { "type": "string", "description": "段落文字。必须织入 evidence_pool 中的证据" }
+                      "type": {
+                        "const": "text"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "段落文字。必须织入 evidence_pool 中的证据"
+                      }
                     }
                   },
                   {
                     "type": "object",
-                    "required": ["type", "position", "prompt"],
+                    "required": [
+                      "type",
+                      "position",
+                      "prompt"
+                    ],
                     "properties": {
-                      "type": { "const": "image_cue" },
-                      "position": { "type": "string", "description": "配图位置" },
-                      "prompt": { "type": "string", "description": "AI 配图提示词" }
+                      "type": {
+                        "const": "image_cue"
+                      },
+                      "position": {
+                        "type": "string",
+                        "description": "配图位置"
+                      },
+                      "prompt": {
+                        "type": "string",
+                        "description": "AI 配图提示词"
+                      }
                     }
                   }
                 ]
               }
             },
-            "ending": { "type": "string" },
-            "estimated_words": { "type": "string", "example": "约 1800 字" }
+            "ending": {
+              "type": "string"
+            },
+            "estimated_words": {
+              "type": "string",
+              "example": "约 1800 字"
+            }
           }
         },
         "bilibili": {
           "type": "object",
           "description": "B站中长视频脚本，3-10分钟，横屏16:9",
           "properties": {
-            "title": { "type": "string", "description": "标题，20-30字" },
-            "duration": { "type": "string", "example": "6分30秒" },
-            "partition": { "type": "string", "description": "推荐分区" },
+            "title": {
+              "type": "string",
+              "description": "标题，20-30字"
+            },
+            "duration": {
+              "type": "string",
+              "example": "6分30秒"
+            },
+            "partition": {
+              "type": "string",
+              "description": "推荐分区"
+            },
             "chapters": {
               "type": "array",
               "description": "章节分段",
               "items": {
                 "type": "object",
-                "required": ["title", "time_range", "shots"],
+                "required": [
+                  "title",
+                  "time_range",
+                  "shots"
+                ],
                 "properties": {
-                  "title": { "type": "string", "description": "章节标题" },
-                  "time_range": { "type": "string", "example": "0:00-2:30" },
+                  "title": {
+                    "type": "string",
+                    "description": "章节标题"
+                  },
+                  "time_range": {
+                    "type": "string",
+                    "example": "0:00-2:30"
+                  },
                   "shots": {
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["time", "visual", "narration"],
+                      "required": [
+                        "time",
+                        "visual",
+                        "narration"
+                      ],
                       "properties": {
-                        "time": { "type": "string", "example": "0:00-0:30" },
-                        "visual": { "type": "string", "description": "画面/镜头/素材" },
-                        "narration": { "type": "string", "description": "口播文案" },
-                        "danmaku_anticipate": { "type": "string", "description": "预判弹幕反应" },
-                        "subtitle": { "type": "string", "description": "字幕/特效" }
+                        "time": {
+                          "type": "string",
+                          "example": "0:00-0:30"
+                        },
+                        "visual": {
+                          "type": "string",
+                          "description": "画面/镜头/素材"
+                        },
+                        "narration": {
+                          "type": "string",
+                          "description": "口播文案"
+                        },
+                        "danmaku_anticipate": {
+                          "type": "string",
+                          "description": "预判弹幕反应"
+                        },
+                        "subtitle": {
+                          "type": "string",
+                          "description": "字幕/特效"
+                        }
                       }
                     }
                   }
                 }
               }
             },
-            "ending": { "type": "string", "description": "结尾总结+三连引导+下期预告" },
-            "cover_suggestion": { "type": "string", "description": "封面建议" }
+            "ending": {
+              "type": "string",
+              "description": "结尾总结+三连引导+下期预告"
+            },
+            "cover_suggestion": {
+              "type": "string",
+              "description": "封面建议"
+            }
+          }
+        }
+      }
+    },
+    "image_plans": {
+      "type": "object",
+      "description": "配图方案（仅图文平台：公众号、小红书）。未勾选的平台对应键填 null。",
+      "properties": {
+        "gongzhonghao": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "公众号配图：封面 + 0-3 张正文配图",
+          "properties": {
+            "cover": {
+              "type": "object",
+              "required": [
+                "concept",
+                "midjourney_prompt"
+              ],
+              "properties": {
+                "concept": {
+                  "type": "string",
+                  "description": "封面创意一句话说明"
+                },
+                "composition": {
+                  "type": "string",
+                  "description": "构图/视觉元素/主体描述"
+                },
+                "style": {
+                  "type": "string",
+                  "description": "摄影/插画/拼贴等风格"
+                },
+                "midjourney_prompt": {
+                  "type": "string",
+                  "description": "英文 MJ prompt，含 --ar 16:9 --v 6 等参数"
+                },
+                "dalle_prompt": {
+                  "type": "string",
+                  "description": "英文 DALL-E prompt（自然语言）"
+                }
+              }
+            },
+            "inline_images": {
+              "type": "array",
+              "description": "正文配图 0-3 张",
+              "items": {
+                "type": "object",
+                "required": [
+                  "position",
+                  "concept",
+                  "midjourney_prompt"
+                ],
+                "properties": {
+                  "position": {
+                    "type": "string",
+                    "description": "插入位置"
+                  },
+                  "concept": {
+                    "type": "string",
+                    "description": "配图意图"
+                  },
+                  "composition": {
+                    "type": "string"
+                  },
+                  "midjourney_prompt": {
+                    "type": "string"
+                  },
+                  "dalle_prompt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "xiaohongshu": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "小红书配图：封面 + 轮播图 3-9 张",
+          "properties": {
+            "cover": {
+              "type": "object",
+              "required": [
+                "concept",
+                "midjourney_prompt"
+              ],
+              "properties": {
+                "concept": {
+                  "type": "string"
+                },
+                "composition": {
+                  "type": "string"
+                },
+                "style": {
+                  "type": "string",
+                  "description": "手机随拍/胶片/拼贴/极简白底等"
+                },
+                "midjourney_prompt": {
+                  "type": "string",
+                  "description": "英文 MJ prompt --ar 3:4 --v 6"
+                },
+                "dalle_prompt": {
+                  "type": "string"
+                }
+              }
+            },
+            "carousel": {
+              "type": "array",
+              "description": "轮播图 3-9 张",
+              "items": {
+                "type": "object",
+                "required": [
+                  "index",
+                  "role",
+                  "concept",
+                  "midjourney_prompt"
+                ],
+                "properties": {
+                  "index": {
+                    "type": "integer"
+                  },
+                  "role": {
+                    "type": "string",
+                    "description": "封面/分点1/分点2/..."
+                  },
+                  "concept": {
+                    "type": "string"
+                  },
+                  "composition": {
+                    "type": "string"
+                  },
+                  "midjourney_prompt": {
+                    "type": "string"
+                  },
+                  "dalle_prompt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "video_storyboard": {
+      "type": "object",
+      "description": "视频分镜表（仅视频平台：抖音、B站）。未勾选的平台对应键填 null。",
+      "properties": {
+        "douyin": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "抖音分镜：6-15 个分镜，时间码到秒",
+          "properties": {
+            "shots": {
+              "type": "array",
+              "minItems": 6,
+              "items": {
+                "type": "object",
+                "required": [
+                  "shot_id",
+                  "timecode",
+                  "visual",
+                  "voiceover"
+                ],
+                "properties": {
+                  "shot_id": {
+                    "type": "integer"
+                  },
+                  "timecode": {
+                    "type": "string",
+                    "example": "0-3s"
+                  },
+                  "shot_type": {
+                    "type": "string",
+                    "description": "近景/中景/特写/空镜"
+                  },
+                  "visual": {
+                    "type": "string",
+                    "description": "画面描述"
+                  },
+                  "voiceover": {
+                    "type": "string",
+                    "description": "口播文案（≤15字一句）"
+                  },
+                  "on_screen_text": {
+                    "type": "string"
+                  },
+                  "sfx": {
+                    "type": "string",
+                    "description": "音效"
+                  },
+                  "transition": {
+                    "type": "string",
+                    "description": "转场"
+                  }
+                }
+              }
+            },
+            "bgm": {
+              "type": "object",
+              "properties": {
+                "mood": {
+                  "type": "string"
+                },
+                "reference": {
+                  "type": "string"
+                },
+                "copyright_note": {
+                  "type": "string",
+                  "description": "版权风险等级及替代建议"
+                }
+              }
+            },
+            "total_seconds": {
+              "type": "integer"
+            }
+          }
+        },
+        "bilibili": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "B站分镜：按章节组织，时间码到分秒",
+          "properties": {
+            "shots": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "shot_id",
+                  "timecode",
+                  "visual",
+                  "voiceover"
+                ],
+                "properties": {
+                  "shot_id": {
+                    "type": "integer"
+                  },
+                  "timecode": {
+                    "type": "string",
+                    "example": "0:00-0:30"
+                  },
+                  "chapter": {
+                    "type": "string"
+                  },
+                  "shot_type": {
+                    "type": "string"
+                  },
+                  "visual": {
+                    "type": "string"
+                  },
+                  "voiceover": {
+                    "type": "string"
+                  },
+                  "on_screen_text": {
+                    "type": "string"
+                  },
+                  "sfx": {
+                    "type": "string"
+                  },
+                  "transition": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "total_minutes": {
+              "type": "number"
+            }
           }
         }
       }

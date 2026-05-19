@@ -3,7 +3,10 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, Index
+from sqlalchemy import (
+    Column, String, Integer, Boolean, Text, DateTime, Index, ForeignKey, Date
+)
+from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
@@ -54,4 +57,53 @@ class ContentItem(Base):
 
     __table_args__ = (
         Index("ix_content_status_updated", "status", "updated_at"),
+    )
+
+
+# ── Phase 2: Content Library ────────────────────────────────────────
+
+class Track(Base):
+    """内容赛道（如：心理赛道、AI 科技）。"""
+    __tablename__ = "tracks"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    name = Column(String, nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    entries = relationship(
+        "ContentEntry",
+        back_populates="track",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class ContentEntry(Base):
+    """赛道下的选题/内容条目。"""
+    __tablename__ = "content_entries"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    track_id = Column(
+        String,
+        ForeignKey("tracks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    title = Column(String, nullable=False)
+    topic_direction = Column(Text, nullable=True, comment="选题方向/角度")
+    publish_date = Column(Date, nullable=True, comment="计划发布日期")
+    # 状态：to_edit（待编辑）、to_publish（待发布）、published（已发布）
+    status = Column(String, default="to_edit", nullable=False, index=True)
+    notes = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    track = relationship("Track", back_populates="entries")
+
+    __table_args__ = (
+        Index("ix_entry_track_status", "track_id", "status"),
     )

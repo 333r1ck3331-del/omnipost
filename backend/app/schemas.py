@@ -1,8 +1,8 @@
 """Pydantic schemas for API request/response validation."""
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, Literal
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, ConfigDict
 
 from app.core.platforms import all_keys, labels_for, get as pf_get
 
@@ -131,3 +131,68 @@ class ProduceStatus(BaseModel):
 class TitleOptimizeResponse(BaseModel):
     """Title optimization result."""
     titles: list[str]
+
+
+# ── Phase 2: Content Library ─────────────────────────────────────────
+
+EntryStatus = Literal["to_edit", "to_publish", "published"]
+
+
+class TrackCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    description: Optional[str] = None
+
+
+class TrackUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=80)
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class TrackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    description: Optional[str] = None
+    sort_order: int = 0
+    entry_count: int = 0
+    created_at: datetime
+
+
+class EntryCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    topic_direction: Optional[str] = None
+    publish_date: Optional[date] = None
+    status: EntryStatus = "to_edit"
+    notes: Optional[str] = None
+
+
+class EntryUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    topic_direction: Optional[str] = None
+    publish_date: Optional[date] = None
+    status: Optional[EntryStatus] = None
+    notes: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class EntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    track_id: str
+    title: str
+    topic_direction: Optional[str] = None
+    publish_date: Optional[date] = None
+    status: EntryStatus
+    notes: Optional[str] = None
+    sort_order: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class EntryBatchUpdate(BaseModel):
+    """批量改状态。"""
+    ids: list[str] = Field(..., min_length=1)
+    status: EntryStatus

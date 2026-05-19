@@ -59,6 +59,28 @@ def load_output_schema(selected_types: list[str] | None = None) -> dict:
             k: v for k, v in all_props.items() if k in required_keys
         }
 
+        # Strip image_plans / video_storyboard children that aren't needed.
+        # image_plans: only gzh/xhs use it; video_storyboard: only video/bilibili.
+        text_platforms = {"gongzhonghao", "xiaohongshu"}
+        video_platforms = {"douyin", "bilibili"}
+        selected_set = set(required_keys)
+
+        ip = schema["properties"].get("image_plans")
+        if ip and "properties" in ip:
+            keep = text_platforms & selected_set
+            if not keep:
+                schema["properties"].pop("image_plans", None)
+            else:
+                ip["properties"] = {k: v for k, v in ip["properties"].items() if k in keep}
+
+        vs = schema["properties"].get("video_storyboard")
+        if vs and "properties" in vs:
+            keep = video_platforms & selected_set
+            if not keep:
+                schema["properties"].pop("video_storyboard", None)
+            else:
+                vs["properties"] = {k: v for k, v in vs["properties"].items() if k in keep}
+
     return schema
 
 

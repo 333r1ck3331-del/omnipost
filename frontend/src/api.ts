@@ -171,3 +171,110 @@ export async function saveConfig(cfg: UserConfig): Promise<UserConfigPublic> {
     body: JSON.stringify(cfg),
   });
 }
+
+
+// ── Phase 2: Content Library ─────────────────────────────────────────
+
+export type EntryStatus = "to_edit" | "to_publish" | "published";
+
+export interface Track {
+  id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  entry_count: number;
+  created_at: string;
+}
+
+export interface ContentEntry {
+  id: string;
+  track_id: string;
+  title: string;
+  topic_direction: string | null;
+  publish_date: string | null;
+  status: EntryStatus;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listTracks(): Promise<Track[]> {
+  return fetchJSON(`${API}/tracks`);
+}
+
+export async function createTrack(name: string, description?: string): Promise<Track> {
+  return fetchJSON(`${API}/tracks`, {
+    method: "POST",
+    body: JSON.stringify({ name, description: description || null }),
+  });
+}
+
+export async function updateTrack(
+  id: string,
+  data: Partial<Pick<Track, "name" | "description" | "sort_order">>,
+): Promise<Track> {
+  return fetchJSON(`${API}/tracks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTrack(id: string): Promise<void> {
+  await fetch(`${API}/tracks/${id}`, { method: "DELETE" });
+}
+
+export async function listEntries(trackId: string, status?: EntryStatus): Promise<ContentEntry[]> {
+  const qs = status ? `?status=${status}` : "";
+  return fetchJSON(`${API}/tracks/${trackId}/entries${qs}`);
+}
+
+export async function createEntry(
+  trackId: string,
+  data: Partial<Omit<ContentEntry, "id" | "track_id" | "created_at" | "updated_at" | "sort_order">> & { title: string },
+): Promise<ContentEntry> {
+  return fetchJSON(`${API}/tracks/${trackId}/entries`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateEntry(
+  entryId: string,
+  data: Partial<Pick<ContentEntry, "title" | "topic_direction" | "publish_date" | "status" | "notes" | "sort_order">>,
+): Promise<ContentEntry> {
+  return fetchJSON(`${API}/entries/${entryId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteEntry(entryId: string): Promise<void> {
+  await fetch(`${API}/entries/${entryId}`, { method: "DELETE" });
+}
+
+export async function batchUpdateEntries(ids: string[], status: EntryStatus): Promise<{ updated: number }> {
+  return fetchJSON(`${API}/entries/batch`, {
+    method: "PATCH",
+    body: JSON.stringify({ ids, status }),
+  });
+}
+
+export function exportTrackXlsxUrl(trackId: string): string {
+  return `${API}/tracks/${trackId}/export`;
+}
+
+export async function importTrackXlsx(
+  trackId: string,
+  file: File,
+): Promise<{ created: number; skipped: number; errors: string[] }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/tracks/${trackId}/import`, {
+    method: "POST",
+    body: form,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.detail || `导入失败 (${res.status})`);
+  return data;
+}
