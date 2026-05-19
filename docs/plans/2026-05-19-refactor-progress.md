@@ -25,7 +25,7 @@
 | A | 拆 system.md → 多 prompt 模板 | 半天 | ⏸ 跳过 | — |
 | F | 加 3-5 个核心 API 集成测试（pytest + httpx） | 半天 | ✅ | (next) |
 | B | ideas.py 业务逻辑下沉到 services/idea_workflow.py | 1 天 | ✅ | (next) |
-| C | IdeaDetail.tsx 拆 Gate1Panel/ProductionPanel/ReviewPanel | 半天 | ⏳ pending | — |
+| C | IdeaDetail.tsx 拆 Gate1Panel/ProductionPanel/ReviewPanel/DistributionPanel | 半天 | ✅ | (next) |
 | Z | Phase 1 端到端联测 | 0.5h | ⏳ pending | — |
 
 **完成后再进 Phase 2**（内容库管理）。
