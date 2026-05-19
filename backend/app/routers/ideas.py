@@ -193,6 +193,8 @@ async def produce_content(
             if val is not None:
                 setattr(item, p.model_field, val)
         item.title_suggestions = json.dumps(result.get("title_suggestions"), ensure_ascii=False)
+        item.image_plans = result.get("image_plans")
+        item.video_storyboard = result.get("video_storyboard")
         item.production_raw = json.dumps(result.get("production_raw"), ensure_ascii=False)
         item.status = "review"
 
@@ -436,6 +438,8 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
         gate1_passed=item.gate1_passed,
         selected_types=_json(item.selected_types),
         title_suggestions=_json(item.title_suggestions),
+        image_plans=_json(item.image_plans),
+        video_storyboard=_json(item.video_storyboard),
         final_content=_json(item.final_content),
         publish_url=item.publish_url,
         notes=item.notes,

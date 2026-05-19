@@ -9,6 +9,8 @@ import type { Idea } from "../api";
 import { CONTENT_TYPES, TYPE_LABELS, STATUS_LABELS } from "../constants";
 import ContentEditor from "../components/ContentEditor";
 import WarningBanner from "../components/WarningBanner";
+import ImagePlansPanel from "../components/ImagePlansPanel";
+import VideoStoryboardPanel from "../components/VideoStoryboardPanel";
 
 export default function IdeaDetail() {
   const { id } = useParams<{ id: string }>();
@@ -452,6 +454,14 @@ export default function IdeaDetail() {
             </div>
           )}
         </section>
+      )}
+
+      {/* Image plans + video storyboard — shown alongside content */}
+      {(idea.status === "review" || idea.status === "completed") && (
+        <>
+          <ImagePlansPanel imagePlans={idea.image_plans} />
+          <VideoStoryboardPanel storyboard={idea.video_storyboard} />
+        </>
       )}
 
       {/* Distribution Strategy — shows after review approval */}

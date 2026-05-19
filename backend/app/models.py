@@ -35,6 +35,8 @@ class ContentItem(Base):
     content_xhs = Column(Text, nullable=True)
     content_video_script = Column(Text, nullable=True)
     content_bilibili = Column(Text, nullable=True)
+    image_plans = Column(Text, nullable=True, comment="JSON: 配图方案 + MJ/DALL-E prompt")
+    video_storyboard = Column(Text, nullable=True, comment="JSON: 视频分镜表（镜头/口播/BGM/时长）")
     title_suggestions = Column(Text, nullable=True)
     production_raw = Column(Text, nullable=True)
     final_content = Column(Text, nullable=True)

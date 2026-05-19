@@ -13,6 +13,8 @@ export interface Idea {
   content_video_script: string | null;
   content_bilibili: string | null;
   title_suggestions: string[] | null;
+  image_plans?: { gzh?: any; xhs?: any } | null;
+  video_storyboard?: { video?: any; bilibili?: any } | null;
   final_content: Record<string, unknown> | null;
   publish_url: string | null;
   notes: string | null;

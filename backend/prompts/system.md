@@ -212,7 +212,34 @@
 
 ---
 
-## 七、输出格式（强制）
+## 七、配图与分镜规则（强制）
+
+### 配图（仅公众号、小红书）
+- **公众号**：1 张封面 + 0-3 张正文配图（按内容长度决定）
+- **小红书**：1 张封面 + 3-9 张轮播图（小红书是图片驱动平台，必须满图位）
+- **不为视频类生成静态配图**——视频用分镜表替代
+- 每张图必须给：构图说明、风格定位、英文 MJ prompt（含 `--ar` 比例）、英文 DALL-E prompt
+- MJ prompt 写实/纪实题材建议加 `--style raw`；插画用 `--niji` 或不加
+- 不要写"AI 生成感"强的 prompt（极端对称、霓虹光、数字海洋等）
+
+### 视频分镜（仅抖音、B站）
+- **抖音**：6-15 个分镜，时间码精确到秒（0-3s/3-6s/...）
+- **B站**：按章节组织分镜，章节内分镜时间码到分秒（0:00-0:30/0:30-1:15/...）
+- 每个分镜必须含：景别、画面、口播、屏幕字幕、音效、转场
+- **BGM 推荐**：必须给情绪标签；可推荐具体曲名但**必须标注版权风险等级**（高/中/低）和替代建议
+  - 高风险：流行金曲、付费歌单 → 替代："使用平台官方曲库同情绪标签曲目"
+  - 中风险：抖音/B站热门 BGM → 替代："站内已授权同款"
+  - 低风险：CC0/公有领域/自制 → 直接可用
+- 不要为图文平台（公众号/小红书）输出分镜
+
+### 字段填充约束
+- 用户未勾选的平台 → `image_plans` 和 `video_storyboard` 里对应的子键填 `null`
+- 勾选公众号/小红书 → 对应 image_plans 子键必填，video_storyboard 对应键填 null
+- 勾选抖音/B站 → 对应 video_storyboard 子键必填，image_plans 对应键填 null
+
+---
+
+## 八、输出格式（强制）
 
 严格输出 JSON 对象本身——不要前后解释、不要 markdown 围栏。
 未生成的平台字段填 null（而非删除）。所有字符串使用双引号，禁止尾逗号。
@@ -248,6 +275,88 @@
       "chapters": [
         {"timestamp": "0-30s", "shot": "镜头描述", "voiceover": "口播文案", "danmaku_hint": "弹幕预判", "subtitle_fx": "字幕特效"}
       ],
+      "total_minutes": 0
+    }
+  },
+  "image_plans": {
+    "gongzhonghao": {
+      "cover": {
+        "concept": "封面创意一句话说明",
+        "composition": "构图/视觉元素/主体描述",
+        "style": "摄影/插画/拼贴等风格",
+        "midjourney_prompt": "英文 MJ prompt，含主体、构图、镜头、光线、风格、参数（如 --ar 16:9 --v 6）",
+        "dalle_prompt": "英文 DALL-E prompt（自然语言描述，无参数）"
+      },
+      "inline_images": [
+        {
+          "position": "插入位置（如：第二段后/方法论部分）",
+          "concept": "配图意图",
+          "composition": "构图描述",
+          "midjourney_prompt": "英文 MJ prompt --ar 16:9 --v 6",
+          "dalle_prompt": "英文 DALL-E prompt"
+        }
+      ]
+    },
+    "xiaohongshu": {
+      "cover": {
+        "concept": "封面创意（小红书首图至关重要）",
+        "composition": "构图描述（强调真实感/生活感，避免过度商业）",
+        "style": "风格（如：手机随拍/胶片/拼贴/极简白底）",
+        "midjourney_prompt": "英文 MJ prompt --ar 3:4 --v 6（小红书首图竖版 3:4）",
+        "dalle_prompt": "英文 DALL-E prompt"
+      },
+      "carousel": [
+        {
+          "index": 1,
+          "role": "封面/分点1/分点2/...",
+          "concept": "该张图要传达的信息",
+          "composition": "构图",
+          "midjourney_prompt": "英文 MJ prompt --ar 3:4 --v 6",
+          "dalle_prompt": "英文 DALL-E prompt"
+        }
+      ]
+    }
+  },
+  "video_storyboard": {
+    "douyin": {
+      "shots": [
+        {
+          "shot_id": 1,
+          "timecode": "0-3s",
+          "shot_type": "近景/中景/特写/空镜",
+          "visual": "画面描述（具体到主体动作/场景/道具）",
+          "voiceover": "口播文案（≤15字一句）",
+          "on_screen_text": "屏幕大字幕",
+          "sfx": "音效（如：电话铃/敲键盘/无）",
+          "transition": "转场（如：硬切/闪白/快推）"
+        }
+      ],
+      "bgm": {
+        "mood": "BGM 情绪标签（如：紧张急促/温暖治愈/反差幽默）",
+        "reference": "参考曲风或公开 BGM 名称（如：抖音热门 BGM 名/无版权曲名）",
+        "copyright_note": "版权提示：若推荐了具体曲名，注明版权风险等级（高/中/低）及替代建议"
+      },
+      "total_seconds": 0
+    },
+    "bilibili": {
+      "shots": [
+        {
+          "shot_id": 1,
+          "chapter": "所属章节名",
+          "timecode": "0:00-0:30",
+          "shot_type": "对镜/资料画面/动画/插画/空镜",
+          "visual": "画面描述",
+          "voiceover": "口播文案",
+          "on_screen_text": "字幕/标题卡",
+          "sfx": "音效",
+          "transition": "转场"
+        }
+      ],
+      "bgm": {
+        "mood": "BGM 情绪标签",
+        "reference": "参考曲风或具体曲名",
+        "copyright_note": "版权风险提示及替代建议（B站建议优先使用站内无版权曲库或自制 BGM）"
+      },
       "total_minutes": 0
     }
   },

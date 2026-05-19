@@ -216,6 +216,24 @@ async def run_content_production(
         if isinstance(t, dict):
             title_suggestions.append(t.get("text", ""))
 
+    # Extract image plans (only for gzh/xhs)
+    image_plans_obj = data.get("image_plans") or {}
+    image_plans_out: dict = {}
+    if (selected_types is None or "gzh" in selected_types) and image_plans_obj.get("gongzhonghao"):
+        image_plans_out["gzh"] = image_plans_obj["gongzhonghao"]
+    if (selected_types is None or "xhs" in selected_types) and image_plans_obj.get("xiaohongshu"):
+        image_plans_out["xhs"] = image_plans_obj["xiaohongshu"]
+    image_plans_json = json.dumps(image_plans_out, ensure_ascii=False) if image_plans_out else None
+
+    # Extract video storyboard (only for video/bilibili)
+    storyboard_obj = data.get("video_storyboard") or {}
+    storyboard_out: dict = {}
+    if (selected_types is None or "video" in selected_types) and storyboard_obj.get("douyin"):
+        storyboard_out["video"] = storyboard_obj["douyin"]
+    if (selected_types is None or "bilibili" in selected_types) and storyboard_obj.get("bilibili"):
+        storyboard_out["bilibili"] = storyboard_obj["bilibili"]
+    storyboard_json = json.dumps(storyboard_out, ensure_ascii=False) if storyboard_out else None
+
     # Sanity check: every selected type MUST have content
     if selected_types:
         contents = {
@@ -241,6 +259,8 @@ async def run_content_production(
         "content_xhs": content_xhs,
         "content_video_script": content_video_script,
         "content_bilibili": content_bilibili,
+        "image_plans": image_plans_json,
+        "video_storyboard": storyboard_json,
         "title_suggestions": title_suggestions,
         "production_raw": data,
         "token_usage": result.get("usage"),
