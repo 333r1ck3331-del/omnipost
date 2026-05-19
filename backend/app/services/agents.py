@@ -10,6 +10,7 @@ from app.services.prompt_loader import (
     load_distribution_prompt,
 )
 from app.services.search import search_competitors, format_search_results, SearchError, fetch_urls, format_url_content
+from app.core.platforms import all_platforms
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,11 @@ async def run_value_judge(idea: str) -> dict:
         if results:
             search_text = format_search_results(results)
             search_used = True
-            logger.info(f"Tavily search: {len(results)} results for '{idea}'")
+            logger.info("Tavily search: %d results", len(results))
     except SearchError as e:
-        logger.warning(f"Tavily search skipped: {e}")
-    except Exception as e:
-        logger.error(f"Tavily search unexpected error: {e}")
+        logger.warning("Tavily search skipped: %s", e)
+    except Exception:
+        logger.exception("Tavily search unexpected error")
 
     # Step 2: Build prompt with search results
     system, user = assemble_value_judge_prompt(idea, search_results=search_text)
@@ -48,14 +49,15 @@ async def run_value_judge(idea: str) -> dict:
     # Step 4: Parse
     try:
         data = parse_json_response(raw)
-    except json.JSONDecodeError:
-        data = {"overall": 5, "verdict": "AI 返回格式异常，建议人工判断", "error": True}
+    except LLMError:
+        data = {"overall": -1, "verdict": "AI 返回格式异常，建议人工判断", "error": True}
 
-    score = data.get("overall", data.get("score", 5))
+    score = data.get("overall", data.get("score", 0))
     if isinstance(score, dict):
-        score = 5
+        # LLM sometimes nests score in an object
+        score = score.get("score") or score.get("value") or score.get("overall") or 0
     try:
-        score = int(score)
+        score = int(float(score))
     except (TypeError, ValueError):
         score = 0
 
@@ -89,13 +91,13 @@ async def run_content_production(
     search_used = False
     urls_fetched = 0
 
-    # Extract URLs from brief
-    import re
-    urls = re.findall(r'https?://[^\s<>"]+', brief) if brief else []
+    # Extract and strip URLs from brief
+    urls = _URL_RE.findall(brief) if brief else []
+    brief_clean = _URL_RE.sub('', brief).strip() if brief else ""
 
     # Tavily search
     try:
-        search_query = f"{idea} {' '.join(brief.split()[:20])}" if brief else idea
+        search_query = f"{idea} {' '.join(brief_clean.split()[:20])}" if brief_clean else idea
         results = await search_competitors(search_query, max_results=5)
         if results:
             research_parts.append(format_search_results(results))
@@ -129,7 +131,7 @@ async def run_content_production(
 
     try:
         data = parse_json_response(raw)
-    except json.JSONDecodeError:
+    except LLMError:
         raise LLMError("AI 返回格式异常，请重试。")
 
     # Extract from the full liubai-style output
@@ -139,18 +141,24 @@ async def run_content_production(
     content_gzh = None
     content_xhs = None
     content_video_script = None
+    content_bilibili = None
     title_suggestions = []
 
     # Extract content
     if selected_types is None or "gzh" in selected_types:
         gzh = scripts.get("gongzhonghao", {})
         if gzh:
-            blocks = gzh.get("blocks", [])
-            parts = []
-            for b in blocks:
-                if isinstance(b, dict) and b.get("type") == "text":
-                    parts.append(b.get("content", ""))
-            content_gzh = "\n\n".join(parts) if parts else json.dumps(gzh, ensure_ascii=False)
+            # New schema: gongzhonghao.body; also support old blocks format
+            body = gzh.get("body", "")
+            if body:
+                content_gzh = body
+            else:
+                blocks = gzh.get("blocks", [])
+                parts = []
+                for b in blocks:
+                    if isinstance(b, dict) and b.get("type") == "text":
+                        parts.append(b.get("content", ""))
+                content_gzh = "\n\n".join(parts) if parts else json.dumps(gzh, ensure_ascii=False)
 
     if selected_types is None or "xhs" in selected_types:
         xhs = scripts.get("xiaohongshu", {})
@@ -158,20 +166,44 @@ async def run_content_production(
             content_xhs = xhs.get("body", json.dumps(xhs, ensure_ascii=False))
 
     if selected_types is None or "video" in selected_types:
-        douyin = scripts.get("douyin", {})
+        douyin = scripts.get("douyin_script") or scripts.get("douyin", {})
         if douyin:
-            shots = douyin.get("shots", [])
-            script_lines = []
-            for s in shots:
-                script_lines.append(f"[{s.get('time', '')}] {s.get('narration', '')}")
-            content_video_script = "\n".join(script_lines) if script_lines else json.dumps(douyin, ensure_ascii=False)
+            # New schema: douyin_script with hook/intro/body/climax/ending
+            if any(k in douyin for k in ("hook_0_3s", "intro_4_15s")):
+                lines = []
+                for part, label in [("hook_0_3s", "前3秒"), ("intro_4_15s", "引入"), 
+                                    ("body_16_50s", "展开"), ("climax_51_75s", "高潮"), 
+                                    ("ending_76_90s", "收尾")]:
+                    txt = douyin.get(part, "")
+                    if txt:
+                        lines.append(f"[{label}] {txt}")
+                content_video_script = "\n".join(lines) if lines else json.dumps(douyin, ensure_ascii=False)
+            else:
+                # Old format: douyin.shots[]
+                shots = douyin.get("shots", [])
+                script_lines = []
+                for s in shots:
+                    script_lines.append(f"[{s.get('time', '')}] {s.get('narration', '')}")
+                content_video_script = "\n".join(script_lines) if script_lines else json.dumps(douyin, ensure_ascii=False)
 
     if selected_types is None or "bilibili" in selected_types:
-        bili = scripts.get("bilibili", {})
+        bili = scripts.get("bilibili_script") or scripts.get("bilibili", {})
         if bili:
-            parts = [f"标题: {bili.get('title', '')}", f"时长: {bili.get('duration', '')}", f"分区: {bili.get('partition', '')}", ""]
+            parts = [f"标题: {bili.get('title', '')}"]
+            if bili.get("total_minutes"):
+                parts.append(f"时长: {bili['total_minutes']}分钟")
+            parts.append("")
+            # New schema: chapters[].voiceover (flat); old: chapters[].shots[].narration (nested)
             for ch in bili.get("chapters", []):
-                parts.append(f"\n## {ch.get('title', '')} ({ch.get('time_range', '')})")
+                ts = ch.get("timestamp", "")
+                parts.append(f"\n## {ch.get('title', '')} ({ts})" if ts else f"\n## {ch.get('title', '')}")
+                # New: direct voiceover field
+                voice = ch.get("voiceover", "")
+                if voice:
+                    dm = ch.get("danmaku_hint", "")
+                    dm_str = f" [弹幕预判: {dm}]" if dm else ""
+                    parts.append(f"{voice}{dm_str}")
+                # Old: nested shots array
                 for shot in ch.get("shots", []):
                     dm = shot.get('danmaku_anticipate', '')
                     dm_str = f" [弹幕预判: {dm}]" if dm else ""
@@ -183,6 +215,26 @@ async def run_content_production(
     for t in titles:
         if isinstance(t, dict):
             title_suggestions.append(t.get("text", ""))
+
+    # Sanity check: every selected type MUST have content
+    if selected_types:
+        contents = {
+            "gzh": content_gzh, "xhs": content_xhs,
+            "video": content_video_script, "bilibili": content_bilibili,
+        }
+        missing = [t for t in selected_types if not contents.get(t)]
+        if missing:
+            from app.core.platforms import get
+            labels = "、".join(get(t).label for t in missing)
+            logger.warning(f"LLM produced empty content for selected types: {labels}")
+
+    # AI trace backend check — lightweight regex scan for obvious patterns
+    ai_traces_found = _scan_ai_traces({
+        "gzh": content_gzh, "xhs": content_xhs,
+        "video": content_video_script, "bilibili": content_bilibili,
+    })
+    if ai_traces_found:
+        logger.warning(f"AI traces detected in output: {ai_traces_found}")
 
     return {
         "content_gzh": content_gzh,
@@ -238,7 +290,7 @@ async def run_title_optimization(
     try:
         data = parse_json_response(raw)
         titles = [t.get("text", "") for t in data.get("titles", [])]
-    except (json.JSONDecodeError, LLMError):
+    except LLMError:
         titles = ["标题生成失败，请重试"]
 
     return {
@@ -264,20 +316,19 @@ async def run_distribution_strategy(
     """
     system = load_distribution_prompt()
 
-    # Build content summary for the prompt
+    # Build content summary for the prompt.
+    # Truncation lengths are per-platform, driven by the registry.
     content_summary_parts = [f"【内容主题】\n{idea}"]
-    if content_gzh:
-        preview = content_gzh[:500] + ("..." if len(content_gzh) > 500 else "")
-        content_summary_parts.append(f"\n【公众号内容摘要】\n{preview}")
-    if content_xhs:
-        preview = content_xhs[:300] + ("..." if len(content_xhs) > 300 else "")
-        content_summary_parts.append(f"\n【小红书内容摘要】\n{preview}")
-    if content_video_script:
-        preview = content_video_script[:300] + ("..." if len(content_video_script) > 300 else "")
-        content_summary_parts.append(f"\n【视频脚本摘要】\n{preview}")
-    if content_bilibili:
-        preview = content_bilibili[:300] + ("..." if len(content_bilibili) > 300 else "")
-        content_summary_parts.append(f"\n【B站脚本摘要】\n{preview}")
+
+    contents = {
+        "gzh": content_gzh, "xhs": content_xhs,
+        "video": content_video_script, "bilibili": content_bilibili,
+    }
+    for p in all_platforms():
+        c = contents.get(p.key)
+        if c:
+            preview = c[:p.truncate] + ("..." if len(c) > p.truncate else "")
+            content_summary_parts.append(f"\n【{p.label}内容摘要】\n{preview}")
 
     content_summary = "\n".join(content_summary_parts)
 
@@ -292,10 +343,46 @@ async def run_distribution_strategy(
 
     try:
         data = parse_json_response(raw)
-    except json.JSONDecodeError:
+    except LLMError:
         raise LLMError("投放策略生成格式异常，请重试。")
 
     return {
         "strategy": data,
         "token_usage": result.get("usage"),
     }
+
+
+# ── AI trace scanner ──
+
+import re as _re
+
+_URL_RE = _re.compile(r'https?://[^\s<>"\')]+')
+_MAX_BRIEF_LEN = 8000
+_MAX_IDEA_LEN = 4000
+
+_AI_PATTERNS = [
+    (_re.compile(r"不是[^，。；\n]{2,20}而是"), "「不是X而是Y」对仗排比"),
+    (_re.compile(r"(?:其实|我们|很多时候|一直以来)[，。]"), "模糊群体修辞"),
+    (_re.compile(r"(?:温柔的|治愈的|有质感的|高级的)"), "空泛形容词"),
+    (_re.compile(r"(?:请记得|愿你|希望你)"), "虚浮祝福"),
+    (_re.compile(r"(?:\n\n[^，。\n]{10,30}。\n\n[^，。\n]{10,30}。\n\n[^，。\n]{10,30}。)"), "三段式排比对仗"),
+]
+
+
+def _scan_ai_traces(contents: dict) -> dict[str, list[str]]:
+    """Lightweight regex scan for common AI patterns in produced content.
+
+    Returns:
+        {platform_key: [pattern_description, ...]} for platforms with hits.
+    """
+    found: dict[str, list[str]] = {}
+    for platform, text in contents.items():
+        if not text:
+            continue
+        hits: list[str] = []
+        for pattern, desc in _AI_PATTERNS:
+            if pattern.search(text):
+                hits.append(desc)
+        if hits:
+            found[platform] = hits
+    return found

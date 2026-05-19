@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchReviewQueue } from "../api";
 import type { IdeaSummary } from "../api";
-import { STATUS_LABELS } from "../constants";
+import IdeaListItem from "../components/IdeaListItem";
 
 export default function ReviewQueue() {
   const [items, setItems] = useState<IdeaSummary[]>([]);
@@ -16,7 +16,8 @@ export default function ReviewQueue() {
     try {
       const data = await fetchReviewQueue();
       setItems(data);
-    } catch {
+    } catch (e) {
+      console.error("fetchReviewQueue failed:", e);
       setError("无法加载审核队列");
     } finally {
       setLoading(false);
@@ -54,28 +55,10 @@ export default function ReviewQueue() {
       ) : (
         <ul className="divide-y divide-gray-100">
           {items.map((item) => (
-            <li
+            <IdeaListItem
               key={item.id}
-              onClick={() => navigate(`/ideas/${item.id}`)}
-              className="py-5 cursor-pointer group"
-            >
-              <div className="flex items-start justify-between gap-6">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-[#2c2c2c] leading-relaxed truncate group-hover:text-black">
-                    {item.idea_text}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 shrink-0 text-xs text-gray-400">
-                  <span>{new Date(item.created_at).toLocaleDateString("zh-CN")}</span>
-                  {item.gate1_score != null && (
-                    <span className="text-gray-500">{item.gate1_score}/10</span>
-                  )}
-                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                    {STATUS_LABELS[item.status] || item.status}
-                  </span>
-                </div>
-              </div>
-            </li>
+              idea={item}
+            />
           ))}
         </ul>
       )}

@@ -14,9 +14,16 @@ from app.schemas import (
 )
 from app.services.agents import run_value_judge, run_content_production, run_title_optimization, run_distribution_strategy
 from app.services.tts import generate_speech, TTSError
+from app.core.platforms import get, all_platforms
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ideas", tags=["ideas"])
+
+VALID_STATUSES = {
+    "draft", "pending_review", "approved", "rejected",
+    "review", "in_production", "production_failed",
+    "completed", "published",
+}
 
 
 @router.post("", response_model=IdeaDetail, status_code=201)
@@ -38,11 +45,14 @@ async def create_idea(body: IdeaCreate, db: AsyncSession = Depends(get_db)):
         else:
             item.gate1_result = json.dumps(details, ensure_ascii=False)
         item.status = "pending_review"
-    except Exception as e:
-        logger.error(f"Gate 1 failed: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Gate 1 failed")
         item.gate1_score = 0
-        item.gate1_result = json.dumps({"error": str(e)}, ensure_ascii=False)
-        item.status = "draft"
+        item.gate1_result = json.dumps(
+            {"error": "evaluation_failed", "message": "价值判断失败，请稍后重试"},
+            ensure_ascii=False,
+        )
+        item.status = "pending_review"
 
     await db.commit()
     await db.refresh(item)
@@ -58,6 +68,11 @@ async def list_ideas(
     db: AsyncSession = Depends(get_db),
 ):
     """List ideas, optionally filtered by status, with pagination."""
+    if status and status not in VALID_STATUSES:
+        raise HTTPException(
+            400,
+            f"无效的状态值: {status!r}，有效值: {', '.join(sorted(VALID_STATUSES))}",
+        )
     base = select(ContentItem)
     if status:
         base = base.where(ContentItem.status == status)
@@ -91,7 +106,9 @@ async def get_idea(idea_id: str, db: AsyncSession = Depends(get_db)):
 async def approve_gate1(idea_id: str, db: AsyncSession = Depends(get_db)):
     """Approve Gate 1 — idea is worth producing."""
     item = await _get_or_404(idea_id, db)
-    item.gate1_passed = 1
+    if item.status not in ("pending_review", "draft"):
+        raise HTTPException(409, f"状态 {item.status!r} 不能进行 Gate 1 审批")
+    item.gate1_passed = True
     item.status = "approved"
     await db.commit()
     return {"status": "ok", "message": "已通过价值判断，可以开始生产内容"}
@@ -101,7 +118,9 @@ async def approve_gate1(idea_id: str, db: AsyncSession = Depends(get_db)):
 async def reject_gate1(idea_id: str, db: AsyncSession = Depends(get_db)):
     """Reject Gate 1 — idea is not worth it."""
     item = await _get_or_404(idea_id, db)
-    item.gate1_passed = 0
+    if item.status not in ("pending_review", "draft"):
+        raise HTTPException(409, f"状态 {item.status!r} 不能驳回")
+    item.gate1_passed = False
     item.status = "rejected"
     await db.commit()
     return {"status": "ok", "message": "已驳回"}
@@ -116,21 +135,50 @@ async def save_brief(idea_id: str, body: BriefRequest, db: AsyncSession = Depend
     return {"status": "ok", "message": "Brief saved"}
 
 
+from datetime import datetime, timedelta, timezone
+
+PRODUCTION_TIMEOUT = timedelta(minutes=10)
+
+# States allowed to enter content production.
+# pending_review is NOT included — user must approve Gate 1 first.
+PRODUCIBLE_STATES = ("approved", "review", "production_failed")
+
+
 @router.post("/{idea_id}/produce")
 async def produce_content(
     idea_id: str,
     body: ProduceRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Trigger content production for approved idea."""
+    """Trigger content production for approved idea.
+
+    Supports retry from production_failed. Uses optimistic locking
+    (UPDATE ... WHERE status=prev) to prevent concurrent production.
+    """
     item = await _get_or_404(idea_id, db)
+    prev_status = item.status
 
-    if item.status not in ("approved", "pending_review", "completed"):
-        raise HTTPException(400, "请先通过价值判断（门禁 1）")
+    if prev_status not in PRODUCIBLE_STATES:
+        # Allow recovery from stuck in_production (e.g. server crash)
+        if prev_status == "in_production" and item.production_started_at \
+                and datetime.now(timezone.utc) - item.production_started_at > PRODUCTION_TIMEOUT:
+            pass  # allow retry
+        else:
+            raise HTTPException(409, f"状态 {prev_status!r} 不能生产内容，请先通过价值判断")
 
-    item.status = "in_production"
-    item.selected_types = json.dumps(body.types, ensure_ascii=False)
+    # Optimistic lock: only transition if nobody else already did
+    from sqlalchemy import update as sql_update
+    result = await db.execute(
+        sql_update(ContentItem)
+        .where(ContentItem.id == item.id, ContentItem.status == prev_status)
+        .values(status="in_production", selected_types=json.dumps(body.types, ensure_ascii=False),
+                production_started_at=datetime.now(timezone.utc))
+    )
+    if result.rowcount == 0:
+        await db.rollback()
+        raise HTTPException(409, "该条目正在被另一个请求处理，请稍后重试")
     await db.commit()
+    await db.refresh(item)
 
     try:
         result = await run_content_production(
@@ -139,24 +187,29 @@ async def produce_content(
             brief=item.brief or "",
         )
 
-        item.content_gzh = result.get("content_gzh")
-        item.content_xhs = result.get("content_xhs")
-        item.content_video_script = result.get("content_video_script")
-        item.content_bilibili = result.get("content_bilibili")
+        # Assign content to DB fields via registry
+        for p in all_platforms():
+            val = result.get(p.model_field)
+            if val is not None:
+                setattr(item, p.model_field, val)
         item.title_suggestions = json.dumps(result.get("title_suggestions"), ensure_ascii=False)
         item.production_raw = json.dumps(result.get("production_raw"), ensure_ascii=False)
         item.status = "review"
 
-        # Log quality (skip for now)
-        pass
-
     except Exception as e:
         logger.error(f"Production failed: {e}")
-        item.status = "approved"  # rollback so user can retry
-        await db.commit()
-        raise HTTPException(500, f"内容生产失败: {e}")
+        try:
+            item.status = "production_failed"
+            await db.commit()
+        except Exception:
+            logger.exception("Failed to set production_failed status")
+        import asyncio
+        if isinstance(e, asyncio.CancelledError):
+            raise
+        raise HTTPException(500, "内容生产失败，请稍后重试")
 
-    await db.commit()
+    else:
+        await db.commit()
     await db.refresh(item)
 
     return _to_detail(item)
@@ -164,19 +217,35 @@ async def produce_content(
 
 @router.patch("/{idea_id}/review/edit")
 async def edit_review(idea_id: str, body: ReviewEdit, db: AsyncSession = Depends(get_db)):
-    """Edit content during review (Gate 2)."""
+    """Edit content during review (Gate 2). Uses optimistic lock via version."""
     item = await _get_or_404(idea_id, db)
 
-    if body.content_gzh is not None:
-        item.content_gzh = body.content_gzh
-    if body.content_xhs is not None:
-        item.content_xhs = body.content_xhs
-    if body.content_video_script is not None:
-        item.content_video_script = body.content_video_script
-    if body.content_bilibili is not None:
-        item.content_bilibili = body.content_bilibili
+    if item.status not in ("review", "completed"):
+        raise HTTPException(409, f"状态 {item.status!r} 不能编辑（需 review 或 completed）")
+
+    # Optimistic lock: only update if version matches
+    from sqlalchemy import update as sql_update
+    updates: dict = {}
+    for p in all_platforms():
+        val = getattr(body, p.model_field, None)
+        if val is not None:
+            updates[p.model_field] = val
     if body.final_content is not None:
-        item.final_content = json.dumps(body.final_content, ensure_ascii=False)
+        updates["final_content"] = json.dumps(body.final_content, ensure_ascii=False)
+    updates["version"] = item.version + 1
+
+    if not updates:
+        await db.rollback()
+        raise HTTPException(400, "没有提供任何修改内容")
+
+    res = await db.execute(
+        sql_update(ContentItem)
+        .where(ContentItem.id == item.id, ContentItem.version == body.version)
+        .values(**updates)
+    )
+    if res.rowcount == 0:
+        await db.rollback()
+        raise HTTPException(409, "编辑冲突：该条目已被其他用户修改，请刷新后重试")
 
     await db.commit()
     await db.refresh(item)
@@ -188,43 +257,81 @@ async def approve_review(idea_id: str, db: AsyncSession = Depends(get_db)):
     """Approve review (Gate 2) — content is finalized."""
     item = await _get_or_404(idea_id, db)
 
+    if item.status != "review":
+        raise HTTPException(409, f"状态 {item.status!r} 无法进行 Gate 2 审批")
+
+    # Optimistic lock: only one request can transition review→completed
+    from sqlalchemy import update as sql_update
+    res = await db.execute(
+        sql_update(ContentItem)
+        .where(ContentItem.id == item.id, ContentItem.status == "review")
+        .values(status="completed")
+    )
+    if res.rowcount == 0:
+        await db.rollback()
+        raise HTTPException(409, "该条目正在被另一个请求处理，请稍后重试")
+    await db.commit()
+    await db.refresh(item)
+
     # Save current content as final if not already set
     if item.final_content is None:
-        item.final_content = json.dumps({
-            "gzh": item.content_gzh,
-            "xhs": item.content_xhs,
-            "video_script": item.content_video_script,
-            "titles": json.loads(item.title_suggestions) if item.title_suggestions else [],
-        }, ensure_ascii=False)
-
-    item.status = "completed"
+        fc = {"titles": json.loads(item.title_suggestions) if item.title_suggestions else []}
+        for p in all_platforms():
+            fc[p.key] = getattr(item, p.model_field)
+        item.final_content = json.dumps(fc, ensure_ascii=False)
 
     # Auto-generate distribution strategy
+    distribution_ok = False
     try:
+        contents = {p.key: getattr(item, p.model_field) for p in all_platforms()}
         dist_result = await run_distribution_strategy(
             idea=item.idea_text,
-            content_gzh=item.content_gzh,
-            content_xhs=item.content_xhs,
-            content_video_script=item.content_video_script,
-            content_bilibili=item.content_bilibili,
+            content_gzh=contents.get("gzh"),
+            content_xhs=contents.get("xhs"),
+            content_video_script=contents.get("video"),
+            content_bilibili=contents.get("bilibili"),
         )
         item.distribution_strategy = json.dumps(dist_result["strategy"], ensure_ascii=False)
+        distribution_ok = True
     except Exception as e:
-        logger.error(f"Distribution strategy failed: {e}")
-        # Don't block review approval — save error note
-        item.distribution_strategy = json.dumps({"error": str(e)}, ensure_ascii=False)
+        logger.error("Distribution strategy failed: %s", e)
+        item.distribution_strategy = json.dumps(
+            {"error": "distribution_failed", "message": "投放策略生成失败，可稍后重试"},
+            ensure_ascii=False,
+        )
 
     await db.commit()
-    return {"status": "ok", "message": "审核通过，可以发布", "distribution_ready": item.distribution_strategy is not None}
+    return {
+        "status": "ok",
+        "message": "审核通过，可以发布",
+        "distribution_ready": distribution_ok,
+    }
 
 
 @router.post("/{idea_id}/review/reject")
 async def reject_review(idea_id: str, body: ReviewReject, db: AsyncSession = Depends(get_db)):
-    """Reject review for a specific content type — retry production for just that type."""
+    """Reject review for a specific content type — retry production for just that type.
+
+    Flow: review → in_production → review (re-review required, NOT completed).
+    Uses optimistic lock to prevent concurrent reject/produce.
+    """
     item = await _get_or_404(idea_id, db)
 
-    item.status = "in_production"
+    if item.status != "review":
+        raise HTTPException(409, f"状态 {item.status!r} 无法退回重做（需 review）")
+
+    # Optimistic lock
+    from sqlalchemy import update as sql_update
+    res = await db.execute(
+        sql_update(ContentItem)
+        .where(ContentItem.id == item.id, ContentItem.status == "review")
+        .values(status="in_production")
+    )
+    if res.rowcount == 0:
+        await db.rollback()
+        raise HTTPException(409, "该条目正在被另一个请求处理，请稍后重试")
     await db.commit()
+    await db.refresh(item)
 
     try:
         result = await run_content_production(
@@ -233,20 +340,22 @@ async def reject_review(idea_id: str, body: ReviewReject, db: AsyncSession = Dep
             brief=item.brief or "",
         )
 
-        if body.retry_type == "gzh":
-            item.content_gzh = result.get("content_gzh")
-        elif body.retry_type == "xhs":
-            item.content_xhs = result.get("content_xhs")
-        elif body.retry_type == "video":
-            item.content_video_script = result.get("content_video_script")
-        elif body.retry_type == "bilibili":
-            item.content_bilibili = result.get("content_bilibili")
+        p = get(body.retry_type)
+        val = result.get(p.model_field)
+        if val is not None:
+            setattr(item, p.model_field, val)
 
-        item.status = "completed"
+        # Back to review — user must re-approve via /review/approve
+        item.status = "review"
     except Exception as e:
-        item.status = "completed"  # revert so user sees old content
+        logger.exception(f"Retry production failed for {idea_id}/{body.retry_type}: {e}")
+        # Restore to review so user keeps the previous content visible
+        item.status = "review"
         await db.commit()
-        raise HTTPException(500, f"重做失败: {e}")
+        import asyncio
+        if isinstance(e, asyncio.CancelledError):
+            raise
+        raise HTTPException(500, "重做失败，请稍后重试")
 
     await db.commit()
     await db.refresh(item)
@@ -259,7 +368,7 @@ async def mark_published(idea_id: str, body: PublishAction, db: AsyncSession = D
     item = await _get_or_404(idea_id, db)
     if item.status != "completed":
         raise HTTPException(400, "请先通过内容审核（门禁 2）")
-    item.publish_url = body.publish_url
+    item.publish_url = str(body.publish_url) if body.publish_url else None
     item.notes = body.notes
     item.status = "published"
     await db.commit()
@@ -318,7 +427,7 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
         except (json.JSONDecodeError, TypeError):
             return s
 
-    return IdeaDetail(
+    detail = IdeaDetail(
         id=item.id,
         idea_text=item.idea_text,
         status=item.status,
@@ -326,10 +435,6 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
         gate1_result=_json(item.gate1_result),
         gate1_passed=item.gate1_passed,
         selected_types=_json(item.selected_types),
-        content_gzh=item.content_gzh,
-        content_xhs=item.content_xhs,
-        content_video_script=item.content_video_script,
-        content_bilibili=item.content_bilibili,
         title_suggestions=_json(item.title_suggestions),
         final_content=_json(item.final_content),
         publish_url=item.publish_url,
@@ -337,4 +442,8 @@ def _to_detail(item: ContentItem) -> IdeaDetail:
         distribution_strategy=_json(item.distribution_strategy),
         created_at=item.created_at.isoformat() if item.created_at else "",
         updated_at=item.updated_at.isoformat() if item.updated_at else "",
+        version=item.version,
     )
+    for p in all_platforms():
+        setattr(detail, p.model_field, getattr(item, p.model_field))
+    return detail

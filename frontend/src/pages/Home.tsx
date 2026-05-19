@@ -1,29 +1,32 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { createIdea, listIdeas } from "../api";
 import type { IdeaSummary } from "../api";
-import { STATUS_LABELS } from "../constants";
+import IdeaListItem from "../components/IdeaListItem";
 
 export default function Home() {
   const [ideas, setIdeas] = useState<IdeaSummary[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const inputId = useId();
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
     try {
       const data = await listIdeas();
       setIdeas(data.items);
-    } catch {
-      setError("后端连接失败");
+    } catch (e) {
+      console.error("listIdeas failed:", e);
+      setLoadError("后端连接失败");
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   async function submit() {
-    if (!input.trim()) return;
+    if (loading || !input.trim()) return;
     setLoading(true);
     setError("");
     try {
@@ -51,10 +54,17 @@ export default function Home() {
       </button>
 
       <div className="mb-16">
+        <label htmlFor={inputId} className="sr-only">内容创意</label>
         <textarea
+          id={inputId}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              submit();
+            }
+          }}
           placeholder="比如：年轻人开始害怕接电话了......"
           className="w-full min-h-[100px] text-base italic p-0 bg-transparent border-0 border-b border-gray-200 resize-y focus:outline-none focus:border-gray-400 placeholder-gray-300"
           disabled={loading}
@@ -69,7 +79,7 @@ export default function Home() {
             {loading ? "分析中..." : "生成内容包 →"}
           </button>
         </div>
-        {error && <p className="mt-4 text-xs text-red-500">{error}</p>}
+        {error && <p className="mt-4 text-xs text-red-500" role="alert">{error}</p>}
       </div>
 
       <div>
@@ -82,32 +92,13 @@ export default function Home() {
             审核队列 →
           </button>
         </div>
-        {ideas.length === 0 ? (
+        {loadError ? (
+          <p className="text-red-500 text-sm" role="alert">{loadError}</p>
+        ) : ideas.length === 0 ? (
           <p className="text-gray-300 text-sm">还没有内容。</p>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {ideas.map((idea) => (
-              <li
-                key={idea.id}
-                onClick={() => navigate(`/ideas/${idea.id}`)}
-                className="py-5 cursor-pointer group"
-              >
-                <div className="flex items-start justify-between gap-6">
-                  <p className="text-sm text-[#2c2c2c] leading-relaxed flex-1 min-w-0 truncate group-hover:text-black">
-                    {idea.idea_text}
-                  </p>
-                  <div className="flex items-center gap-4 shrink-0 text-xs text-gray-400">
-                    <span>{new Date(idea.created_at).toLocaleDateString("zh-CN")}</span>
-                    {idea.gate1_score != null && (
-                      <span className="text-gray-500">{idea.gate1_score}/100</span>
-                    )}
-                    <span className="text-gray-400">
-                      {STATUS_LABELS[idea.status] || idea.status}
-                    </span>
-                  </div>
-                </div>
-              </li>
-            ))}
+            {ideas.map((idea) => <IdeaListItem key={idea.id} idea={idea} />)}
           </ul>
         )}
       </div>

@@ -8,15 +8,16 @@
     "score": {
       "type": "object",
       "description": "自评分——写完内容后对自己的评估",
-      "required": ["overall"],
+      "required": ["overall", "ai_trace"],
       "properties": {
         "overall": { "type": "integer", "minimum": 0, "maximum": 100, "description": "综合自评" },
         "ai_trace": {
           "type": "object",
-          "description": "AI 痕迹自检",
+          "description": "AI 痕迹自检——必须逐项完成，否则内容判作废",
+          "required": ["score", "detected_patterns", "verdict"],
           "properties": {
             "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "AI 痕迹严重程度，越低越好" },
-            "detected_patterns": { "type": "array", "items": { "type": "string" }, "description": "发现的 AI 痕迹模式" },
+            "detected_patterns": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "发现的 AI 痕迹模式。如确实无痕迹，填 '无明显AI痕迹' 并说明理由" },
             "verdict": { "type": "string", "enum": ["轻微", "中度", "严重"] }
           }
         }

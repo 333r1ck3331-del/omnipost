@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getIdea, approveGate1, rejectGate1, produceContent,
@@ -7,6 +7,8 @@ import {
 } from "../api";
 import type { Idea } from "../api";
 import { CONTENT_TYPES, TYPE_LABELS, STATUS_LABELS } from "../constants";
+import ContentEditor from "../components/ContentEditor";
+import WarningBanner from "../components/WarningBanner";
 
 export default function IdeaDetail() {
   const { id } = useParams<{ id: string }>();
@@ -14,7 +16,7 @@ export default function IdeaDetail() {
   const [idea, setIdea] = useState<Idea | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([...CONTENT_TYPES]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(["gzh"]);
   const [editGzh, setEditGzh] = useState("");
   const [editXhs, setEditXhs] = useState("");
   const [editVideo, setEditVideo] = useState("");
@@ -35,6 +37,9 @@ export default function IdeaDetail() {
       setEditXhs(data.content_xhs || "");
       setEditVideo(data.content_video_script || "");
       setEditBilibili(data.content_bilibili || "");
+      if (data.selected_types && data.selected_types.length > 0) {
+        setSelectedTypes(data.selected_types);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -42,7 +47,47 @@ export default function IdeaDetail() {
     }
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  const runAction = useCallback(async (fn: () => Promise<any>) => {
+    setError("");
+    try { await fn(); await load(); }
+    catch (e: any) {
+      const msg = e?.message || "操作失败";
+      setError(msg);
+      setTimeout(() => setError(prev => prev === msg ? "" : prev), 5000);
+      await load();
+    }
+  }, [load]);
+
+  useEffect(() => {
+    setOptTitles([]);
+    setTtsUrl("");
+    setBrief("");
+    setError("");
+    load();
+  }, [load]);
+
+  // Auto-poll: exponential backoff + pause when tab hidden
+  const [pollSeconds, setPollSeconds] = useState(0);
+  const pollRef = useRef<any>(null);
+  useEffect(() => {
+    if (idea?.status !== "in_production") { setPollSeconds(0); return; }
+    let delay = 3000;
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      if (document.hidden) { pollRef.current = setTimeout(tick, 5000); return; }
+      try {
+        await load();
+        setPollSeconds(s => s + delay / 1000);
+        delay = Math.min(delay * 1.2, 15000);
+      } catch {
+        delay = Math.min(delay * 2, 30000);
+      }
+      if (!cancelled) pollRef.current = setTimeout(tick, delay);
+    };
+    pollRef.current = setTimeout(tick, delay);
+    return () => { cancelled = true; clearTimeout(pollRef.current); };
+  }, [idea?.status, load]);
 
   if (loading) return <p className="text-gray-300 text-sm">加载中...</p>;
   if (!idea) return <p className="text-red-500 text-sm">{error || "未找到"}</p>;
@@ -50,6 +95,7 @@ export default function IdeaDetail() {
   const isGate1Ready = idea.status === "pending_review";
   const isApproved = idea.status === "approved";
   const isProducing = idea.status === "in_production";
+  const isProductionFailed = idea.status === "production_failed";
   const isReviewing = idea.status === "review";
   const isCompleted = idea.status === "completed";
   const isPublished = idea.status === "published";
@@ -63,6 +109,8 @@ export default function IdeaDetail() {
       >
         ← 返回
       </button>
+
+      <WarningBanner idea={idea} />
 
       {/* Title */}
       <h1 className="text-xl font-medium leading-relaxed mb-3 text-[#2c2c2c]">
@@ -82,8 +130,14 @@ export default function IdeaDetail() {
         {idea.gate1_score != null && idea.gate1_result ? (
           <div>
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="text-4xl font-light text-[#2c2c2c]">{idea.gate1_score}</span>
-              <span className="text-sm text-gray-400">/ 100</span>
+              {idea.gate1_score < 0 ? (
+                <span className="text-lg text-red-400">评估失败</span>
+              ) : (
+                <>
+                  <span className="text-4xl font-light text-[#2c2c2c]">{idea.gate1_score}</span>
+                  <span className="text-sm text-gray-400">/ 100</span>
+                </>
+              )}
             </div>
             {idea.gate1_result.verdict && (
               <p className="text-sm text-gray-600 leading-relaxed mb-4">
@@ -99,7 +153,6 @@ export default function IdeaDetail() {
                     originality: "原创性", audience_appeal: "受众吸引力",
                     content_richness: "内容厚度", timeliness: "时效性", feasibility: "执行可行性",
                   };
-                  const pct = Math.round((dim.score / 100) * 100);
                   const color = dim.score >= 76 ? "text-green-600" : dim.score >= 61 ? "text-gray-700" : dim.score >= 41 ? "text-yellow-600" : "text-red-500";
                   return (
                     <div key={key} className="border-b border-gray-50 pb-3">
@@ -140,13 +193,13 @@ export default function IdeaDetail() {
             {isGate1Ready && (
               <div className="flex gap-6 mt-8">
                 <button
-                  onClick={async () => { setError(""); await approveGate1(idea.id); load(); }}
+                  onClick={() => runAction(() => approveGate1(idea.id))}
                   className="text-sm text-gray-800 hover:text-black transition"
                 >
                   通过，开始生产 →
                 </button>
                 <button
-                  onClick={async () => { setError(""); await rejectGate1(idea.id); load(); }}
+                  onClick={() => runAction(() => rejectGate1(idea.id))}
                   className="text-sm text-gray-400 hover:text-gray-600 transition"
                 >
                   驳回
@@ -185,10 +238,9 @@ export default function IdeaDetail() {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => {
-                    if (selected) setSelectedTypes(selectedTypes.filter((x) => x !== t));
-                    else setSelectedTypes([...selectedTypes, t]);
-                  }}
+                  onClick={() => setSelectedTypes((prev) =>
+                    prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+                  )}
                   className={`text-xs px-3 py-1.5 rounded-full transition ${
                     selected
                       ? "bg-gray-800 text-white"
@@ -201,18 +253,12 @@ export default function IdeaDetail() {
             })}
           </div>
           <button
-            onClick={async () => {
-              setError("");
-              if (!brief.trim()) return;
-              if (selectedTypes.length === 0) return;
-              try {
+            onClick={() => {
+              if (!brief.trim() || selectedTypes.length === 0) return;
+              runAction(async () => {
                 await saveBrief(idea.id, brief.trim());
                 await produceContent(idea.id, selectedTypes);
-                await load();
-              } catch (e: any) {
-                setError(e.message);
-                load();
-              }
+              });
             }}
             disabled={!brief.trim() || selectedTypes.length === 0}
             className={`text-sm transition ${
@@ -230,6 +276,26 @@ export default function IdeaDetail() {
       {isProducing && (
         <section className="mb-16">
           <p className="text-sm text-gray-400">AI 正在生成内容，请稍候...</p>
+          <p className="text-xs text-gray-500 mt-1">
+            已等待 {Math.round(pollSeconds)}s
+            {pollSeconds > 60 && (
+              <button onClick={load} className="ml-2 underline">手动刷新</button>
+            )}
+          </p>
+        </section>
+      )}
+
+      {/* Production failed */}
+      {isProductionFailed && (
+        <section className="mb-16">
+          <h2 className="text-xs text-gray-400 tracking-wider mb-4">生产失败</h2>
+          <p className="text-sm text-gray-600 mb-6">内容生成中断或超时。请重试。</p>
+          <button
+            onClick={() => runAction(() => produceContent(idea.id, idea.selected_types || ["gzh"]))}
+            className="text-sm px-4 py-2 bg-red-50 text-red-700 rounded hover:bg-red-100 transition"
+          >
+            重新生成 →
+          </button>
         </section>
       )}
 
@@ -246,11 +312,15 @@ export default function IdeaDetail() {
                   <button
                     onClick={async () => {
                       setOptimizing(true);
+                      setError("");
                       try {
                         const r = await optimizeTitles(idea.id);
                         setOptTitles(r.titles);
-                      } catch { /* ignore */ }
-                      setOptimizing(false);
+                      } catch (e: any) {
+                        setError(e?.message || "优化失败");
+                      } finally {
+                        setOptimizing(false);
+                      }
                     }}
                     disabled={optimizing}
                     className="text-xs text-gray-400 hover:text-gray-600 transition"
@@ -269,49 +339,41 @@ export default function IdeaDetail() {
             </div>
           )}
 
-          {editGzh && (
+          {idea.content_gzh != null && (
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">公众号长文</h3>
                 {isReviewing && (
                   <button
-                    onClick={async () => { setError(""); await rejectReview(idea.id, "gzh"); load(); }}
+                    onClick={() => runAction(() => rejectReview(idea.id, "gzh"))}
                     className="text-xs text-gray-400 hover:text-red-500 transition"
                   >
                     重做
                   </button>
                 )}
               </div>
-              <textarea
-                value={editGzh}
-                onChange={(e) => setEditGzh(e.target.value)}
-                className="w-full min-h-[240px] text-sm p-4 bg-white border border-gray-100 rounded resize-y focus:outline-none focus:border-gray-300 leading-relaxed"
-              />
+              <ContentEditor platform="gzh" value={editGzh} onChange={setEditGzh} />
             </div>
           )}
 
-          {editXhs && (
+          {idea.content_xhs != null && (
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">小红书短文</h3>
                 {isReviewing && (
                   <button
-                    onClick={async () => { setError(""); await rejectReview(idea.id, "xhs"); load(); }}
+                    onClick={() => runAction(() => rejectReview(idea.id, "xhs"))}
                     className="text-xs text-gray-400 hover:text-red-500 transition"
                   >
                     重做
                   </button>
                 )}
               </div>
-              <textarea
-                value={editXhs}
-                onChange={(e) => setEditXhs(e.target.value)}
-                className="w-full min-h-[140px] text-sm p-4 bg-white border border-gray-100 rounded resize-y focus:outline-none focus:border-gray-300 leading-relaxed"
-              />
+              <ContentEditor platform="xhs" value={editXhs} onChange={setEditXhs} />
             </div>
           )}
 
-          {editVideo && (
+          {idea.content_video_script != null && (
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">视频脚本</h3>
@@ -319,11 +381,15 @@ export default function IdeaDetail() {
                   <button
                     onClick={async () => {
                       setTtsGenerating(true);
+                      setError("");
                       try {
                         const r = await generateTTS(idea.id);
                         setTtsUrl(r.url);
-                      } catch { /* ignore */ }
-                      setTtsGenerating(false);
+                      } catch (e: any) {
+                        setError(e?.message || "TTS 生成失败");
+                      } finally {
+                        setTtsGenerating(false);
+                      }
                     }}
                     disabled={ttsGenerating}
                     className="text-xs text-gray-400 hover:text-gray-600 transition"
@@ -332,7 +398,7 @@ export default function IdeaDetail() {
                   </button>
                   {isReviewing && (
                     <button
-                      onClick={async () => { setError(""); await rejectReview(idea.id, "video"); load(); }}
+                      onClick={() => runAction(() => rejectReview(idea.id, "video"))}
                       className="text-xs text-gray-400 hover:text-red-500 transition"
                     >
                       重做
@@ -340,11 +406,7 @@ export default function IdeaDetail() {
                   )}
                 </div>
               </div>
-              <textarea
-                value={editVideo}
-                onChange={(e) => setEditVideo(e.target.value)}
-                className="w-full min-h-[140px] text-sm p-4 bg-white border border-gray-100 rounded resize-y focus:outline-none focus:border-gray-300 font-mono leading-relaxed"
-              />
+              <ContentEditor platform="video" value={editVideo} onChange={setEditVideo} />
               {ttsUrl && (
                 <audio controls className="mt-3 w-full" src={ttsUrl}>
                   您的浏览器不支持音频播放
@@ -353,41 +415,36 @@ export default function IdeaDetail() {
             </div>
           )}
 
-          {editBilibili && (
+          {idea.content_bilibili != null && (
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs text-gray-400">B站视频</h3>
                 {isReviewing && (
                   <button
-                    onClick={async () => { setError(""); await rejectReview(idea.id, "bilibili"); load(); }}
+                    onClick={() => runAction(() => rejectReview(idea.id, "bilibili"))}
                     className="text-xs text-gray-400 hover:text-red-500 transition"
                   >
                     重做
                   </button>
                 )}
               </div>
-              <textarea
-                value={editBilibili}
-                onChange={(e) => setEditBilibili(e.target.value)}
-                className="w-full min-h-[200px] text-sm p-4 bg-white border border-gray-100 rounded resize-y focus:outline-none focus:border-gray-300 font-mono text-xs leading-relaxed"
-              />
+              <ContentEditor platform="bilibili" value={editBilibili} onChange={setEditBilibili} />
             </div>
           )}
 
           {isReviewing && (
             <div>
               <button
-                onClick={async () => {
-                  setError("");
+                onClick={() => runAction(async () => {
                   await editReview(idea.id, {
-                    content_gzh: editGzh,
-                    content_xhs: editXhs,
-                    content_video_script: editVideo,
-                    content_bilibili: editBilibili,
+                    content_gzh: editGzh || null,
+                    content_xhs: editXhs || null,
+                    content_video_script: editVideo || null,
+                    content_bilibili: editBilibili || null,
+                    version: idea.version,
                   });
                   await approveReview(idea.id);
-                  load();
-                }}
+                })}
                 className="text-sm text-gray-800 hover:text-black transition"
               >
                 审核通过 ✓
@@ -501,7 +558,7 @@ export default function IdeaDetail() {
                       {ds.series_potential.suitable ? "✅ 适合系列化" : "❌ 不适合系列化"}
                       {ds.series_potential.reason && ` · ${ds.series_potential.reason}`}
                     </p>
-                    {ds.series_potential.follow_up_topics?.length > 0 && (
+                    {ds.series_potential.follow_up_topics && ds.series_potential.follow_up_topics.length > 0 && (
                       <ul className="mt-1 space-y-0.5">
                         {ds.series_potential.follow_up_topics.map((t: string, i: number) => (
                           <li key={i} className="text-xs text-gray-500 pl-3">→ {t}</li>
@@ -521,7 +578,7 @@ export default function IdeaDetail() {
         <section className="mb-16">
           <h2 className="text-xs text-gray-400 tracking-wider mb-6">发布</h2>
           <button
-            onClick={async () => { setError(""); await markPublished(idea.id); load(); }}
+            onClick={() => runAction(() => markPublished(idea.id))}
             className="text-sm text-gray-800 hover:text-black transition"
           >
             标记为已发布 →
@@ -536,7 +593,10 @@ export default function IdeaDetail() {
       )}
 
       {error && (
-        <p className="text-xs text-red-500">{error}</p>
+        <div className="fixed bottom-6 right-6 bg-red-600 text-white text-xs px-4 py-3 rounded shadow-lg z-50 max-w-sm">
+          {error}
+          <button onClick={() => setError("")} className="ml-3 opacity-70 hover:opacity-100">✕</button>
+        </div>
       )}
     </div>
   );

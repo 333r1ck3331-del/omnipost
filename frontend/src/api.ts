@@ -5,20 +5,41 @@ export interface Idea {
   idea_text: string;
   status: string;
   gate1_score: number | null;
-  gate1_result: any;
-  gate1_passed: number;
+  gate1_result: Gate1Result | null;
+  gate1_passed: boolean;
   selected_types: string[] | null;
   content_gzh: string | null;
   content_xhs: string | null;
   content_video_script: string | null;
   content_bilibili: string | null;
   title_suggestions: string[] | null;
-  final_content: any;
+  final_content: Record<string, unknown> | null;
   publish_url: string | null;
   notes: string | null;
-  distribution_strategy: any;
+  distribution_strategy: DistributionStrategy | null;
   created_at: string;
   updated_at: string;
+  version: number;
+}
+
+export interface Gate1Dimension {
+  score: number;
+  plus?: string[];
+  minus?: string[];
+}
+export interface Gate1Result {
+  verdict?: string;
+  dimensions?: Record<string, Gate1Dimension>;
+  competitive_analysis?: string;
+  advice?: string;
+  error?: string;
+}
+export interface DistributionStrategy {
+  platforms?: Record<string, any>;
+  audience_layers?: { core?: string; extend?: string; avoid?: string };
+  risk_warning?: string;
+  series_potential?: { suitable: boolean; reason?: string; follow_up_topics?: string[] };
+  error?: string;
 }
 
 export interface IdeaSummary {
@@ -34,11 +55,17 @@ async function fetchJSON(url: string, options?: RequestInit) {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || `HTTP ${res.status}`);
+  const text = await res.text();
+  const ct = res.headers.get("content-type") || "";
+  let data: any = null;
+  if (text && ct.includes("json")) {
+    try { data = JSON.parse(text); } catch { /* keep null */ }
   }
-  return res.json();
+  if (!res.ok) {
+    const msg = data?.detail || data?.message || `请求失败 (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
 }
 
 export async function createIdea(ideaText: string): Promise<Idea> {
@@ -49,7 +76,7 @@ export async function createIdea(ideaText: string): Promise<Idea> {
 }
 
 export async function listIdeas(status?: string): Promise<{ items: IdeaSummary[]; total: number }> {
-  const url = status ? `${API}/ideas?status=${status}` : `${API}/ideas`;
+  const url = status ? `${API}/ideas?status=${encodeURIComponent(status)}` : `${API}/ideas`;
   return fetchJSON(url);
 }
 
@@ -69,10 +96,10 @@ export async function rejectGate1(id: string) {
   return fetchJSON(`${API}/ideas/${id}/gate1/reject`, { method: "POST" });
 }
 
-export async function produceContent(id: string, types: string[], tone?: string): Promise<Idea> {
+export async function produceContent(id: string, types: string[]): Promise<Idea> {
   return fetchJSON(`${API}/ideas/${id}/produce`, {
     method: "POST",
-    body: JSON.stringify({ types, tone }),
+    body: JSON.stringify({ types }),
   });
 }
 
@@ -83,7 +110,7 @@ export async function saveBrief(id: string, briefText: string) {
   });
 }
 
-export async function editReview(id: string, data: Record<string, string | null>) {
+export async function editReview(id: string, data: Record<string, string | number | null>) {
   return fetchJSON(`${API}/ideas/${id}/review/edit`, {
     method: "PATCH",
     body: JSON.stringify(data),
@@ -124,11 +151,19 @@ export interface UserConfig {
   tavily_enabled: boolean;
 }
 
-export async function getConfig(): Promise<UserConfig> {
+/** Public view of config — API key is never exposed, only set status + hint. */
+export interface UserConfigPublic {
+  provider: string;
+  api_key_set: boolean;
+  api_key_hint: string;
+  tavily_enabled: boolean;
+}
+
+export async function getConfig(): Promise<UserConfigPublic> {
   return fetchJSON("/api/config");
 }
 
-export async function saveConfig(cfg: UserConfig): Promise<UserConfig> {
+export async function saveConfig(cfg: UserConfig): Promise<UserConfigPublic> {
   return fetchJSON("/api/config", {
     method: "POST",
     body: JSON.stringify(cfg),

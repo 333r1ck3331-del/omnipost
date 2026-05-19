@@ -9,18 +9,40 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
 from app.core.config import DEBUG
-from app.core.database import init_db
+from app.core.database import init_db, async_session
 from app.routers import ideas, config
+from sqlalchemy import select, update
+from app.models import ContentItem
 
 logging.basicConfig(level=logging.INFO if DEBUG else logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
+async def _recover_zombie_productions():
+    """Recover items stuck in 'in_production' (e.g. process killed mid-LLM-call)."""
+    try:
+        async with async_session() as session:
+            stmt = (
+                update(ContentItem)
+                .where(ContentItem.status == "in_production")
+                .values(status="production_failed")
+            )
+            result = await session.execute(stmt)
+            await session.commit()
+            if result.rowcount:
+                logger.warning(
+                    f"Recovered {result.rowcount} zombie production(s) → production_failed"
+                )
+    except Exception:
+        logger.exception("Zombie recovery failed (non-fatal)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: create DB tables. Shutdown: nothing yet."""
+    """Startup: create DB tables, recover zombie productions. Shutdown: nothing yet."""
     logger.info("Creating database tables...")
     await init_db()
+    await _recover_zombie_productions()
     logger.info("OmniPost backend ready.")
     yield
 
