@@ -26,3 +26,16 @@ Thumbs.db
 .env
 *.pem
 user_config.json
+
+# Deploy runtime artifacts
+deploy/logs/
+deploy/*.sock
+deploy/*.pid
+
+# Test runtime
+.pytest_cache/
+test_omnipost.db
+
+# Backend static cache
+backend/static/tts/*
+!backend/static/tts/.gitkeep
