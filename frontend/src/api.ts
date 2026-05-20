@@ -18,6 +18,8 @@ export interface Idea {
   video_storyboard?: { video?: any; bilibili?: any } | null;
   final_content: Record<string, unknown> | null;
   review_log?: Record<string, { changed: boolean; issues: { quote: string; problem: string }[]; error?: string | null }> | null;
+  enrichment_flags?: Record<string, boolean> | null;
+  enrichment_summary?: Record<string, { label: string; count: number; items: { title: string; url: string; fetched: boolean; query?: string }[] }> | null;
   publish_url: string | null;
   notes: string | null;
   distribution_strategy: DistributionStrategy | null;
@@ -111,10 +113,20 @@ export async function rejectGate1(id: string) {
   return fetchJSON(`${API}/ideas/${id}/gate1/reject`, { method: "POST" });
 }
 
-export async function produceContent(id: string, types: string[]): Promise<Idea> {
+export interface EnrichmentFlags {
+  topic_articles?: boolean;
+  counter_views?: boolean;
+  data_cases?: boolean;
+}
+
+export async function produceContent(
+  id: string,
+  types: string[],
+  enrichment?: EnrichmentFlags,
+): Promise<Idea> {
   return fetchJSON(`${API}/ideas/${id}/produce`, {
     method: "POST",
-    body: JSON.stringify({ types }),
+    body: JSON.stringify({ types, enrichment: enrichment || null }),
   });
 }
 

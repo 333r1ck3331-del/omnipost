@@ -77,6 +77,7 @@ async def run_content_production(
     selected_types: list[str] | None = None,
     brief: str = "",
     scene: str | None = None,
+    extra_research: str = "",
 ) -> dict:
     """Produce content: full package including gzh, xhs, video script, titles.
 
@@ -123,6 +124,8 @@ async def run_content_production(
             logger.error(f"URL crawl error: {e}")
 
     research_brief = "\n\n".join(research_parts) if research_parts else ""
+    if extra_research and extra_research.strip():
+        research_brief = (research_brief + "\n\n" + extra_research.strip()).strip()
 
     prompt = assemble_content_production_prompt(
         idea, selected_types, brief=brief, research_brief=research_brief, scene=scene,

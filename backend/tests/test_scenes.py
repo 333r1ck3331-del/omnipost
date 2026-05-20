@@ -50,9 +50,9 @@ async def test_scene_passed_to_production(monkeypatch, client):
 
     real = wf.run_content_production
 
-    async def spy(idea, selected_types=None, brief="", scene=None):
+    async def spy(idea, selected_types=None, brief="", scene=None, extra_research=""):
         captured["scene"] = scene
-        return await real(idea, selected_types, brief, scene=scene)
+        return await real(idea, selected_types, brief, scene=scene, extra_research=extra_research)
 
     monkeypatch.setattr(wf, "run_content_production", spy)
 

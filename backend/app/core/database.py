@@ -32,6 +32,8 @@ async def init_db():
         # 轻量迁移：补 content_items.review_log 列（SQLite IF NOT EXISTS 不支持 ADD COLUMN，先探测）
         await _ensure_column(conn, "content_items", "review_log", "TEXT")
         await _ensure_column(conn, "content_items", "scene", "VARCHAR")
+        await _ensure_column(conn, "content_items", "enrichment_flags", "TEXT")
+        await _ensure_column(conn, "content_items", "enrichment_data", "TEXT")
 
 
 async def _ensure_column(conn, table: str, column: str, decl: str):

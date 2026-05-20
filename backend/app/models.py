@@ -25,6 +25,8 @@ class ContentItem(Base):
     idea_text = Column(Text, nullable=False)
     brief = Column(Text, nullable=True, default=None, comment="User's content requirements")
     scene = Column(String, nullable=True, comment="场景类型：kepu/guandian/gushi/qinggan/ganhuo/redian，空=通用")
+    enrichment_flags = Column(Text, nullable=True, comment="JSON: {topic_articles:bool, counter_views:bool, data_cases:bool}")
+    enrichment_data = Column(Text, nullable=True, comment="JSON: 抓取到的素材清单（带标题、URL、内容、状态）")
     status = Column(String, default="draft", index=True)
 
     # Gate 1 — value judgment

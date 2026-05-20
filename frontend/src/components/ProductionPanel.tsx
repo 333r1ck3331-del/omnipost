@@ -1,6 +1,13 @@
-import type { Idea } from "../api";
+import { useState } from "react";
+import type { Idea, EnrichmentFlags } from "../api";
 import { saveBrief, produceContent } from "../api";
 import { CONTENT_TYPES, TYPE_LABELS } from "../constants";
+
+const ENRICHMENT_OPTIONS: { key: keyof EnrichmentFlags; label: string; hint: string }[] = [
+  { key: "topic_articles", label: "同主题原文", hint: "搜 top 3 篇相关文章，喂全文给 AI 参考" },
+  { key: "counter_views", label: "反观点罗列", hint: "找 2-3 条反方/质疑资料，避免一边倒" },
+  { key: "data_cases", label: "数据/案例", hint: "找具体数字、案例、报告，要求 AI 标注来源" },
+];
 
 interface Props {
   idea: Idea;
@@ -21,6 +28,11 @@ export default function ProductionPanel({
   brief, setBrief, selectedTypes, setSelectedTypes,
   pollSeconds, runAction, load,
 }: Props) {
+  const [enrichment, setEnrichment] = useState<EnrichmentFlags>({});
+  const toggleEnrichment = (k: keyof EnrichmentFlags) =>
+    setEnrichment((prev) => ({ ...prev, [k]: !prev[k] }));
+  const hasEnrichment = Object.values(enrichment).some(Boolean);
+
   return (
     <>
       {isApproved && (
@@ -36,7 +48,29 @@ export default function ProductionPanel({
             className="w-full min-h-[120px] text-sm italic p-4 bg-white border border-gray-100 rounded resize-y focus:outline-none focus:border-gray-300 leading-relaxed placeholder-gray-300"
           />
 
-          <h2 className="text-xs text-gray-400 tracking-wider mt-12 mb-6">内容类型</h2>
+          <h2 className="text-xs text-gray-400 tracking-wider mt-12 mb-3">素材增强 <span className="text-gray-300 font-normal">（可选，默认关）</span></h2>
+          <p className="text-xs text-gray-400 mb-4">勾选后会先抓取参考资料，详细清单写在生成结果上方，可逐条点开看 AI 用了什么。</p>
+          <div className="flex flex-col gap-2 mb-8">
+            {ENRICHMENT_OPTIONS.map((o) => (
+              <label key={o.key} className="flex items-start gap-2 cursor-pointer text-sm">
+                <input
+                  type="checkbox"
+                  checked={!!enrichment[o.key]}
+                  onChange={() => toggleEnrichment(o.key)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="text-gray-700">{o.label}</span>
+                  <span className="text-xs text-gray-400 ml-2">{o.hint}</span>
+                </span>
+              </label>
+            ))}
+            {hasEnrichment && (
+              <p className="text-xs text-amber-600 mt-1">注意：会多消耗 5-30 秒抓取时间</p>
+            )}
+          </div>
+
+          <h2 className="text-xs text-gray-400 tracking-wider mb-6">内容类型</h2>
           <div className="flex flex-wrap gap-2 mb-8">
             {CONTENT_TYPES.map((t) => {
               const selected = selectedTypes.includes(t);
@@ -65,7 +99,7 @@ export default function ProductionPanel({
               if (!brief.trim() || selectedTypes.length === 0) return;
               runAction(async () => {
                 await saveBrief(idea.id, brief.trim());
-                await produceContent(idea.id, selectedTypes);
+                await produceContent(idea.id, selectedTypes, hasEnrichment ? enrichment : undefined);
               });
             }}
             disabled={!brief.trim() || selectedTypes.length === 0}

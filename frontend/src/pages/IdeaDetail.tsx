@@ -9,6 +9,7 @@ import VideoStoryboardPanel from "../components/VideoStoryboardPanel";
 import Gate1Panel from "../components/Gate1Panel";
 import ProductionPanel from "../components/ProductionPanel";
 import ReviewPanel from "../components/ReviewPanel";
+import EnrichmentCard from "../components/EnrichmentCard";
 import DistributionPanel from "../components/DistributionPanel";
 
 export default function IdeaDetail() {
@@ -160,6 +161,8 @@ export default function IdeaDetail() {
         runAction={runAction}
         load={load}
       />
+
+      <EnrichmentCard idea={idea} />
 
       <ReviewPanel
         idea={idea}

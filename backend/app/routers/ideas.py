@@ -90,7 +90,7 @@ async def produce_content(
     body: ProduceRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    item = await wf.produce_content(db, idea_id, body.types)
+    item = await wf.produce_content(db, idea_id, body.types, enrichment_flags=body.enrichment)
     return wf.to_detail(item)
 
 

@@ -42,7 +42,7 @@ async def _fake_value_judge(idea: str) -> dict:
     }
 
 
-async def _fake_production(idea: str, selected_types=None, brief: str = "", scene: str | None = None) -> dict:
+async def _fake_production(idea: str, selected_types=None, brief: str = "", scene: str | None = None, extra_research: str = "") -> dict:
     selected_types = selected_types or ["gzh"]
     out = {
         "content_gzh": None,

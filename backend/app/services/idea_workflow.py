@@ -160,6 +160,7 @@ async def produce_content(
     db: AsyncSession,
     idea_id: str,
     types: list[str],
+    enrichment_flags: dict[str, bool] | None = None,
 ) -> ContentItem:
     """Run content production with optimistic locking.
 
@@ -196,8 +197,26 @@ async def produce_content(
     await db.refresh(item)
 
     try:
+        # 素材增强（可选）— 在内容生产前先抓
+        extra_research = ""
+        if enrichment_flags and any(enrichment_flags.values()):
+            from app.services.enrichment import (
+                run_enrichment,
+                format_enrichment_for_prompt,
+            )
+            try:
+                enrichment_data = await run_enrichment(item.idea_text, enrichment_flags)
+                extra_research = format_enrichment_for_prompt(enrichment_data)
+                item.enrichment_flags = json.dumps(enrichment_flags, ensure_ascii=False)
+                item.enrichment_data = json.dumps(enrichment_data, ensure_ascii=False)
+            except Exception as e:  # noqa: BLE001
+                logger.exception("enrichment failed (continuing without): %s", e)
+                item.enrichment_flags = json.dumps(enrichment_flags, ensure_ascii=False)
+                item.enrichment_data = json.dumps({}, ensure_ascii=False)
+
         result = await run_content_production(
             item.idea_text, types, brief=item.brief or "", scene=item.scene,
+            extra_research=extra_research,
         )
         for p in all_platforms():
             val = result.get(p.model_field)
@@ -427,6 +446,21 @@ def _maybe_json(s):
         return s
 
 
+def _enrichment_summary_safe(raw):
+    """从 enrichment_data JSON 字段算 summary（兼容空/坏数据）。"""
+    try:
+        if not raw:
+            return None
+        data = json.loads(raw) if isinstance(raw, str) else raw
+        if not isinstance(data, dict):
+            return None
+        from app.services.enrichment import enrichment_summary
+        s = enrichment_summary(data)
+        return s or None
+    except Exception:
+        return None
+
+
 def to_summary(item: ContentItem) -> IdeaSummary:
     text = item.idea_text or ""
     return IdeaSummary(
@@ -453,6 +487,9 @@ def to_detail(item: ContentItem) -> IdeaDetail:
         video_storyboard=_maybe_json(item.video_storyboard),
         final_content=_maybe_json(item.final_content),
         review_log=_maybe_json(getattr(item, "review_log", None)),
+        enrichment_flags=_maybe_json(getattr(item, "enrichment_flags", None)),
+        enrichment_data=_maybe_json(getattr(item, "enrichment_data", None)),
+        enrichment_summary=_enrichment_summary_safe(getattr(item, "enrichment_data", None)),
         publish_url=item.publish_url,
         notes=item.notes,
         distribution_strategy=_maybe_json(item.distribution_strategy),

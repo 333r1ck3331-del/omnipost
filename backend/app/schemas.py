@@ -34,6 +34,10 @@ class Gate1Action(BaseModel):
 class ProduceRequest(BaseModel):
     """开始生产内容"""
     types: list[str] = Field(..., description=TYPES_DESC)
+    enrichment: Optional[dict] = Field(
+        None,
+        description="素材增强开关 {topic_articles:bool, counter_views:bool, data_cases:bool}",
+    )
 
 
 class BriefRequest(BaseModel):
@@ -95,6 +99,9 @@ class IdeaDetail(BaseModel):
     video_storyboard: Optional[dict] = None
     final_content: Optional[dict] = None
     review_log: Optional[object] = None
+    enrichment_flags: Optional[dict] = None
+    enrichment_summary: Optional[dict] = None
+    enrichment_data: Optional[dict] = None
     publish_url: Optional[str] = None
     notes: Optional[str] = None
     distribution_strategy: Optional[object] = None
