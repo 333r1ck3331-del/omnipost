@@ -196,3 +196,65 @@ class EntryBatchUpdate(BaseModel):
     """批量改状态。"""
     ids: list[str] = Field(..., min_length=1)
     status: EntryStatus
+
+
+# ── Phase 3: Feed crawling ─────────────────────────────────────────
+
+class FeedSourceCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    url: str = Field(..., min_length=1, max_length=1000)
+    enabled: bool = True
+
+
+class FeedSourceUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    url: Optional[str] = Field(None, min_length=1, max_length=1000)
+    enabled: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class FeedSourceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    url: str
+    enabled: bool
+    last_fetched_at: Optional[datetime] = None
+    last_error: Optional[str] = None
+    sort_order: int
+    created_at: datetime
+
+
+class CrawlBatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    triggered_at: datetime
+    source_count: int
+    item_count: int
+    note: Optional[str] = None
+
+
+class CrawlItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    batch_id: str
+    source_id: Optional[str] = None
+    source_name: Optional[str] = None
+    title: str
+    link: str
+    summary: Optional[str] = None
+    author: Optional[str] = None
+    published_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class CrawlItemsToTrack(BaseModel):
+    """把多条 crawl_item 一键加入某赛道。"""
+    item_ids: list[str] = Field(..., min_length=1)
+    track_id: str
+
+
+class CrawlItemsToIdea(BaseModel):
+    """把多条 crawl_item 合并送去生成点子。"""
+    item_ids: list[str] = Field(..., min_length=1)
+    brief: Optional[str] = None

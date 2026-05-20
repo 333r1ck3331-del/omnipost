@@ -107,3 +107,70 @@ class ContentEntry(Base):
     __table_args__ = (
         Index("ix_entry_track_status", "track_id", "status"),
     )
+
+
+# ── Phase 3: Feed Crawling ──────────────────────────────────────────
+
+class FeedSource(Base):
+    """RSS 订阅源（用户管理）。"""
+    __tablename__ = "feed_sources"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    name = Column(String, nullable=False)
+    url = Column(String, nullable=False, unique=True)
+    enabled = Column(Boolean, default=True, nullable=False)
+    last_fetched_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
+class CrawlBatch(Base):
+    """一次抓取产生一个批次（左侧时间轴一条）。"""
+    __tablename__ = "crawl_batches"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    triggered_at = Column(DateTime(timezone=True), default=_now, index=True)
+    source_count = Column(Integer, default=0, nullable=False)
+    item_count = Column(Integer, default=0, nullable=False)
+    note = Column(Text, nullable=True, comment="抓取摘要 / 失败信息汇总")
+
+    items = relationship(
+        "CrawlItem",
+        back_populates="batch",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class CrawlItem(Base):
+    """抓取到的一条文章。"""
+    __tablename__ = "crawl_items"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    batch_id = Column(
+        String,
+        ForeignKey("crawl_batches.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_id = Column(
+        String,
+        ForeignKey("feed_sources.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_name = Column(String, nullable=True, comment="抓取时快照，源被删后仍可显示")
+    title = Column(String, nullable=False)
+    link = Column(String, nullable=False)
+    summary = Column(Text, nullable=True)
+    content = Column(Text, nullable=True, comment="原文 / 长正文（如 RSS 提供）")
+    author = Column(String, nullable=True)
+    published_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    batch = relationship("CrawlBatch", back_populates="items")
+
+    __table_args__ = (
+        Index("ix_crawl_item_batch_published", "batch_id", "published_at"),
+    )

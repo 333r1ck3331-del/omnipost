@@ -103,6 +103,17 @@ async def delete_track(track_id: str, db: AsyncSession = Depends(get_db)):
     return None
 
 
+@router.delete("/api/tracks/{track_id}/entries")
+async def clear_track_entries(track_id: str, db: AsyncSession = Depends(get_db)):
+    """清空赛道下所有条目（保留赛道本身）。"""
+    await _get_track(db, track_id)
+    res = await db.execute(
+        delete(ContentEntry).where(ContentEntry.track_id == track_id)
+    )
+    await db.commit()
+    return {"deleted": res.rowcount}
+
+
 # ── Entry routes ────────────────────────────────────────────────────
 
 @router.get("/api/tracks/{track_id}/entries", response_model=list[EntryOut])

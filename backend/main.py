@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import DEBUG
 from app.core.database import init_db, async_session
-from app.routers import ideas, config, library
+from app.routers import ideas, config, library, crawl
 from sqlalchemy import select, update
 from app.models import ContentItem
 
@@ -76,6 +76,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 app.include_router(ideas.router)
 app.include_router(config.router)
 app.include_router(library.router)
+app.include_router(crawl.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

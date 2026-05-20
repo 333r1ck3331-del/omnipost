@@ -214,3 +214,31 @@ async def test_import_rejects_non_xlsx(client):
         files={"file": ("x.csv", b"some,csv,data", "text/csv")},
     )
     assert r.status_code == 400
+
+
+async def test_clear_track_entries(client):
+    """清空赛道条目：保留赛道，删除全部条目。"""
+    r = await client.post("/api/tracks", json={"name": "ClearMe"})
+    tid = r.json()["id"]
+    # add 3 entries
+    for i in range(3):
+        await client.post(f"/api/tracks/{tid}/entries", json={"title": f"E{i}"})
+    r = await client.get(f"/api/tracks/{tid}/entries")
+    assert len(r.json()) == 3
+
+    # clear
+    r = await client.delete(f"/api/tracks/{tid}/entries")
+    assert r.status_code == 200
+    assert r.json() == {"deleted": 3}
+
+    # track still exists, entries gone
+    r = await client.get(f"/api/tracks/{tid}/entries")
+    assert r.status_code == 200 and r.json() == []
+
+    # idempotent: clear again on empty track → deleted=0
+    r = await client.delete(f"/api/tracks/{tid}/entries")
+    assert r.json() == {"deleted": 0}
+
+    # 404 on missing track
+    r = await client.delete("/api/tracks/nonexistent-id/entries")
+    assert r.status_code == 404
