@@ -150,6 +150,7 @@ export async function generateTTS(id: string): Promise<{ url: string }> {
 export interface UserConfig {
   provider: string;
   api_key: string;
+  model?: string;
   tavily_enabled: boolean;
 }
 
@@ -158,6 +159,7 @@ export interface UserConfigPublic {
   provider: string;
   api_key_set: boolean;
   api_key_hint: string;
+  model?: string;
   tavily_enabled: boolean;
 }
 
@@ -224,6 +226,10 @@ export async function deleteTrack(id: string): Promise<void> {
   await fetch(`${API}/tracks/${id}`, { method: "DELETE" });
 }
 
+export async function clearTrackEntries(id: string): Promise<{ deleted: number }> {
+  return fetchJSON(`${API}/tracks/${id}/entries`, { method: "DELETE" });
+}
+
 export async function listEntries(trackId: string, status?: EntryStatus): Promise<ContentEntry[]> {
   const qs = status ? `?status=${status}` : "";
   return fetchJSON(`${API}/tracks/${trackId}/entries${qs}`);
@@ -277,4 +283,89 @@ export async function importTrackXlsx(
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.detail || `导入失败 (${res.status})`);
   return data;
+}
+
+
+// ── Phase 3: Feed crawling ─────────────────────────────────────
+
+export interface FeedSource {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  last_fetched_at: string | null;
+  last_error: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface CrawlBatch {
+  id: string;
+  triggered_at: string;
+  source_count: number;
+  item_count: number;
+  note: string | null;
+}
+
+export interface CrawlItem {
+  id: string;
+  batch_id: string;
+  source_id: string | null;
+  source_name: string | null;
+  title: string;
+  link: string;
+  summary: string | null;
+  author: string | null;
+  published_at: string | null;
+  created_at: string;
+}
+
+export async function listFeedSources(): Promise<FeedSource[]> {
+  return fetchJSON(`${API}/feed-sources`);
+}
+
+export async function createFeedSource(data: { name: string; url: string; enabled?: boolean }): Promise<FeedSource> {
+  return fetchJSON(`${API}/feed-sources`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateFeedSource(id: string, data: Partial<Pick<FeedSource, "name" | "url" | "enabled" | "sort_order">>): Promise<FeedSource> {
+  return fetchJSON(`${API}/feed-sources/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export async function deleteFeedSource(id: string): Promise<void> {
+  await fetch(`${API}/feed-sources/${id}`, { method: "DELETE" });
+}
+
+export async function triggerCrawl(): Promise<CrawlBatch> {
+  return fetchJSON(`${API}/crawl/run`, { method: "POST" });
+}
+
+export async function listCrawlBatches(): Promise<CrawlBatch[]> {
+  return fetchJSON(`${API}/crawl/batches`);
+}
+
+export async function listBatchItems(batchId: string): Promise<CrawlItem[]> {
+  return fetchJSON(`${API}/crawl/batches/${batchId}/items`);
+}
+
+export async function deleteBatch(batchId: string): Promise<void> {
+  await fetch(`${API}/crawl/batches/${batchId}`, { method: "DELETE" });
+}
+
+export async function deleteCrawlItem(itemId: string): Promise<void> {
+  await fetch(`${API}/crawl/items/${itemId}`, { method: "DELETE" });
+}
+
+export async function crawlItemsToTrack(itemIds: string[], trackId: string): Promise<{ created: number; track_id: string }> {
+  return fetchJSON(`${API}/crawl/items-to-track`, {
+    method: "POST",
+    body: JSON.stringify({ item_ids: itemIds, track_id: trackId }),
+  });
+}
+
+export async function crawlItemsToIdea(itemIds: string[], brief?: string): Promise<{ id: string; merged_count: number }> {
+  return fetchJSON(`${API}/crawl/items-to-idea`, {
+    method: "POST",
+    body: JSON.stringify({ item_ids: itemIds, brief }),
+  });
 }

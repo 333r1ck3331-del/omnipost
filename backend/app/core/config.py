@@ -38,7 +38,7 @@ def reload_config():
     downstream consumers (llm.py) pick up changes without restart.
     """
     global LLM_PROVIDER, LLM_API_KEY, LLM_MODEL
-    global DEEPSEEK_BASE_URL, CLAUDE_BASE_URL
+    global DEEPSEEK_BASE_URL, CLAUDE_BASE_URL, OPENAI_BASE_URL
     global DATABASE_URL, SECRET_KEY, DEBUG
     global TAVILY_API_KEY, TAVILY_ENABLED
 
@@ -48,10 +48,17 @@ def reload_config():
     # LLM — user_config overrides env
     LLM_PROVIDER = user_cfg.get("provider") or os.getenv("LLM_PROVIDER", "deepseek")
     LLM_API_KEY = user_cfg.get("api_key") or os.getenv("LLM_API_KEY", "")
-    LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
+    # 模型名优先级：user_config > env > provider 默认
+    _default_model = {"deepseek": "deepseek-chat", "claude": "claude-sonnet-4-5", "openai": "gpt-4o-mini"}
+    LLM_MODEL = (
+        user_cfg.get("model")
+        or os.getenv("LLM_MODEL")
+        or _default_model.get(LLM_PROVIDER, "deepseek-chat")
+    )
 
     DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
     CLAUDE_BASE_URL = os.getenv("CLAUDE_BASE_URL", "https://api.anthropic.com/v1")
+    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./omnipost.db")
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
     DEBUG = os.getenv("DEBUG", "true").lower() == "true"
@@ -75,10 +82,16 @@ user_cfg = _load_user_config()
 
 LLM_PROVIDER = user_cfg.get("provider") or os.getenv("LLM_PROVIDER", "deepseek")
 LLM_API_KEY = user_cfg.get("api_key") or os.getenv("LLM_API_KEY", "")
-LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
+_default_model = {"deepseek": "deepseek-chat", "claude": "claude-sonnet-4-5", "openai": "gpt-4o-mini"}
+LLM_MODEL = (
+    user_cfg.get("model")
+    or os.getenv("LLM_MODEL")
+    or _default_model.get(LLM_PROVIDER, "deepseek-chat")
+)
 
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 CLAUDE_BASE_URL = os.getenv("CLAUDE_BASE_URL", "https://api.anthropic.com/v1")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./omnipost.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"

@@ -18,6 +18,7 @@ from app.core.config import _USER_CONFIG_PATH as CONFIG_PATH
 class UserConfig(BaseModel):
     provider: str = "deepseek"
     api_key: str = ""
+    model: str = ""  # 空 = 用 provider 默认
     tavily_enabled: bool = True
 
 
@@ -26,6 +27,7 @@ class UserConfigPublic(BaseModel):
     provider: str
     api_key_set: bool
     api_key_hint: str = ""
+    model: str = ""
     tavily_enabled: bool
 
 
@@ -66,6 +68,7 @@ def _build_public(cfg: UserConfig) -> UserConfigPublic:
         provider=cfg.provider,
         api_key_set=bool(k),
         api_key_hint=hint,
+        model=cfg.model,
         tavily_enabled=cfg.tavily_enabled,
     )
 

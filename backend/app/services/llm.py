@@ -25,6 +25,7 @@ class LLMError(Exception):
 _ALLOWED_BASE_URLS = {
     "deepseek": {"https://api.deepseek.com", "https://api.deepseek.com/v1"},
     "claude": {"https://api.anthropic.com/v1"},
+    "openai": {"https://api.openai.com/v1"},
 }
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
@@ -89,6 +90,8 @@ async def call_llm(prompt: str, system_prompt: str | None = None) -> dict:
         return await _call_deepseek(prompt, system_prompt, api_key, model)
     elif provider == "claude":
         return await _call_claude(prompt, system_prompt, api_key, model)
+    elif provider == "openai":
+        return await _call_openai(prompt, system_prompt, api_key, model)
     else:
         raise LLMError(f"不支持的 LLM provider: {provider}")
 
@@ -216,6 +219,70 @@ async def _call_claude(
         "usage": {
             "input": usage.get("input_tokens", 0),
             "output": usage.get("output_tokens", 0),
+            "model": model,
+        },
+        "latency_ms": int(latency),
+    }
+
+
+# ── OpenAI ────────────────────────────────────────────────────────
+
+async def _call_openai(
+    prompt: str,
+    system_prompt: str | None,
+    api_key: str,
+    model: str,
+) -> dict:
+    """Call OpenAI Chat Completions (also works for any OpenAI-compatible API)."""
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    body = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": 8000,
+    }
+
+    # gpt-4o / gpt-4-turbo / gpt-3.5 系列支持 json_object 响应格式
+    # o1 / o3 推理模型不支持 response_format 和 temperature 参数
+    if not model.startswith("o1") and not model.startswith("o3"):
+        body["response_format"] = {"type": "json_object"}
+        body["temperature"] = 0.85
+
+    base_url = cfg.OPENAI_BASE_URL.rstrip("/")
+    if base_url not in _ALLOWED_BASE_URLS["openai"]:
+        raise LLMError("OPENAI_BASE_URL 不在白名单内")
+
+    t0 = time.monotonic()
+    async with httpx.AsyncClient(timeout=_TIMEOUT, limits=_LIMITS) as client:
+        resp = await _post_with_retry(
+            client,
+            f"{base_url}/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            json_body=body,
+            api_key=api_key,
+        )
+    latency = (time.monotonic() - t0) * 1000
+
+    if resp.status_code != 200:
+        raise LLMError(
+            f"OpenAI API 错误 ({resp.status_code}): {_redact(resp.text[:300], api_key)}"
+        )
+
+    data = resp.json()
+    content = data["choices"][0]["message"]["content"]
+    usage = data.get("usage", {})
+
+    return {
+        "content": content,
+        "usage": {
+            "input": usage.get("prompt_tokens", 0),
+            "output": usage.get("completion_tokens", 0),
             "model": model,
         },
         "latency_ms": int(latency),
