@@ -31,6 +31,7 @@ from app.schemas import (
 )
 from app.services.agents import (
     run_content_production,
+    run_content_review,
     run_distribution_strategy,
     run_title_optimization,
     run_value_judge,
@@ -100,9 +101,13 @@ async def review_queue(db: AsyncSession) -> list[IdeaSummary]:
 
 # ── Mutations ────────────────────────────────────────────────────────
 
-async def create_idea(db: AsyncSession, idea_text: str) -> ContentItem:
+async def create_idea(db: AsyncSession, idea_text: str, scene: str | None = None) -> ContentItem:
     """Create an idea + run Gate 1 value judgment. Errors persist but don't 500."""
-    item = ContentItem(idea_text=idea_text, status="pending_review")
+    # 场景白名单校验
+    from app.services.prompt_loader import SCENES
+    if scene and scene not in SCENES:
+        raise HTTPException(400, f"未知场景: {scene!r}，可选: {', '.join(SCENES.keys())}")
+    item = ContentItem(idea_text=idea_text, scene=scene or None, status="pending_review")
     db.add(item)
 
     try:
@@ -192,7 +197,7 @@ async def produce_content(
 
     try:
         result = await run_content_production(
-            item.idea_text, types, brief=item.brief or "",
+            item.idea_text, types, brief=item.brief or "", scene=item.scene,
         )
         for p in all_platforms():
             val = result.get(p.model_field)
@@ -202,6 +207,32 @@ async def produce_content(
         item.image_plans = result.get("image_plans")
         item.video_storyboard = result.get("video_storyboard")
         item.production_raw = json.dumps(result.get("production_raw"), ensure_ascii=False)
+
+        # ── 自我审稿：用户开关控制（默认关，避免无声烧 token）──
+        from app.core.config import _load_user_config
+        cfg = _load_user_config()
+        if cfg.get("auto_review", False):
+            review_log: dict = {}
+            for p in all_platforms():
+                if p.key not in types:
+                    continue
+                draft = getattr(item, p.model_field, None)
+                if not draft:
+                    continue
+                try:
+                    rev = await run_content_review(p.label, draft, idea=item.idea_text, scene=item.scene)
+                    if rev.get("changed") and rev.get("rewritten"):
+                        setattr(item, p.model_field, rev["rewritten"])
+                    review_log[p.key] = {
+                        "changed": rev.get("changed", False),
+                        "issues": rev.get("issues", []),
+                        "error": rev.get("error"),
+                    }
+                except Exception as e:
+                    logger.exception(f"Review error on {p.key}")
+                    review_log[p.key] = {"changed": False, "issues": [], "error": str(e)}
+            item.review_log = json.dumps(review_log, ensure_ascii=False)
+
         item.status = "review"
     except Exception as e:
         logger.error(f"Production failed: {e}")
@@ -341,7 +372,7 @@ async def reject_review(
 
     try:
         result = await run_content_production(
-            item.idea_text, [retry_type], brief=item.brief or "",
+            item.idea_text, [retry_type], brief=item.brief or "", scene=item.scene,
         )
         p = pf_get(retry_type)
         val = result.get(p.model_field)
@@ -411,6 +442,7 @@ def to_detail(item: ContentItem) -> IdeaDetail:
     detail = IdeaDetail(
         id=item.id,
         idea_text=item.idea_text,
+        scene=item.scene,
         status=item.status,
         gate1_score=item.gate1_score,
         gate1_result=_maybe_json(item.gate1_result),
@@ -420,6 +452,7 @@ def to_detail(item: ContentItem) -> IdeaDetail:
         image_plans=_maybe_json(item.image_plans),
         video_storyboard=_maybe_json(item.video_storyboard),
         final_content=_maybe_json(item.final_content),
+        review_log=_maybe_json(getattr(item, "review_log", None)),
         publish_url=item.publish_url,
         notes=item.notes,
         distribution_strategy=_maybe_json(item.distribution_strategy),

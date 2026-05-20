@@ -54,6 +54,8 @@ export default function Settings() {
   const [apiKeyHint, setApiKeyHint] = useState("");
   const [model, setModel] = useState("deepseek-chat");
   const [tavilyEnabled, setTavilyEnabled] = useState(true);
+  const [autoReview, setAutoReview] = useState(false);
+  const [styleSamples, setStyleSamples] = useState("");
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -76,6 +78,8 @@ export default function Settings() {
         setApiKeySet(cfg.api_key_set);
         setApiKeyHint(cfg.api_key_hint ?? "");
         setTavilyEnabled(cfg.tavily_enabled ?? true);
+        setAutoReview(cfg.auto_review ?? false);
+        setStyleSamples(cfg.style_samples ?? "");
         const def = PROVIDERS.find((p) => p.value === (cfg.provider ?? "deepseek"));
         setModel(cfg.model || def?.defaultModel || "deepseek-chat");
       })
@@ -103,6 +107,8 @@ export default function Settings() {
       api_key: apiKey,
       model: model.trim(),
       tavily_enabled: tavilyEnabled,
+      auto_review: autoReview,
+      style_samples: styleSamples,
     };
     try {
       const result = await saveConfig(cfg);
@@ -230,6 +236,44 @@ export default function Settings() {
           </button>
           <p className="text-xs text-gray-300 mt-1">
             开启后价值判断会搜索全网竞品内容作为参考
+          </p>
+        </div>
+
+        {/* Auto-review */}
+        <div>
+          <label className="block text-sm text-gray-500 mb-2">自动改稿（主编挑刺+重写）</label>
+          <button
+            type="button"
+            aria-pressed={autoReview}
+            onClick={() => setAutoReview(!autoReview)}
+            className={`text-sm px-4 py-1.5 rounded transition ${
+              autoReview
+                ? "bg-gray-800 text-white"
+                : "bg-gray-100 text-gray-400"
+            }`}
+          >
+            {autoReview ? "已开启" : "已关闭"}
+          </button>
+          <p className="text-xs text-gray-300 mt-1">
+            开启后每生产 1 条内容会多调一次 LLM 做自我审稿与改写。会增加 token 消耗，但能显著减少 AI 腔。
+          </p>
+        </div>
+
+        {/* Style samples */}
+        <div>
+          <label htmlFor="style-samples-input" className="block text-sm text-gray-500 mb-2">
+            风格样本（学习你的写作风格）
+          </label>
+          <textarea
+            id="style-samples-input"
+            value={styleSamples}
+            onChange={(e) => setStyleSamples(e.target.value)}
+            rows={8}
+            placeholder="贴 2-5 段你自己写过的最满意的内容（公众号文章片段、小红书笔记都行）。&#10;AI 在生产新内容时会模仿这里的句式、断句、用词偏好。&#10;留空 = 用通用风格。"
+            className="w-full text-sm p-2 bg-transparent border border-gray-200 rounded focus:outline-none focus:border-gray-400 placeholder-gray-300"
+          />
+          <p className="text-xs text-gray-300 mt-1">
+            建议 500-2000 字。太长会被截断（超过 4000 字自动截断）。
           </p>
         </div>
 

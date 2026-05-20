@@ -20,6 +20,8 @@ class UserConfig(BaseModel):
     api_key: str = ""
     model: str = ""  # 空 = 用 provider 默认
     tavily_enabled: bool = True
+    auto_review: bool = False  # 自动改稿（费 token）
+    style_samples: str = ""    # 用户的风格样本（注入到 prompt）
 
 
 class UserConfigPublic(BaseModel):
@@ -29,6 +31,8 @@ class UserConfigPublic(BaseModel):
     api_key_hint: str = ""
     model: str = ""
     tavily_enabled: bool
+    auto_review: bool = False
+    style_samples: str = ""
 
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -70,6 +74,8 @@ def _build_public(cfg: UserConfig) -> UserConfigPublic:
         api_key_hint=hint,
         model=cfg.model,
         tavily_enabled=cfg.tavily_enabled,
+        auto_review=cfg.auto_review,
+        style_samples=cfg.style_samples,
     )
 
 

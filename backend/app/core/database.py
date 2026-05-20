@@ -29,6 +29,18 @@ async def init_db():
     """Create all tables. Called on startup."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # 轻量迁移：补 content_items.review_log 列（SQLite IF NOT EXISTS 不支持 ADD COLUMN，先探测）
+        await _ensure_column(conn, "content_items", "review_log", "TEXT")
+        await _ensure_column(conn, "content_items", "scene", "VARCHAR")
+
+
+async def _ensure_column(conn, table: str, column: str, decl: str):
+    """Add a column if missing (idempotent, SQLite-safe)."""
+    from sqlalchemy import text
+    res = await conn.exec_driver_sql(f"PRAGMA table_info({table})")
+    cols = {row[1] for row in res.fetchall()}
+    if column not in cols:
+        await conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
 
 async def get_db() -> AsyncSession:

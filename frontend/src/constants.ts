@@ -19,3 +19,12 @@ export const TYPE_LABELS: Record<string, string> = {
   video: "短视频脚本",
   bilibili: "B站视频",
 };
+
+export const SCENE_LABELS: Record<string, string> = {
+  kepu: "科普解释",
+  guandian: "观点输出",
+  gushi: "故事叙事",
+  qinggan: "情感共鸣",
+  ganhuo: "干货清单",
+  redian: "热点评论",
+};

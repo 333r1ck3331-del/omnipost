@@ -42,7 +42,7 @@ async def _fake_value_judge(idea: str) -> dict:
     }
 
 
-async def _fake_production(idea: str, selected_types=None, brief: str = "") -> dict:
+async def _fake_production(idea: str, selected_types=None, brief: str = "", scene: str | None = None) -> dict:
     selected_types = selected_types or ["gzh"]
     out = {
         "content_gzh": None,
@@ -74,6 +74,18 @@ async def _fake_title_optimization(idea: str, existing=None) -> dict:
     return {"titles": ["新标题1", "新标题2", "新标题3"]}
 
 
+async def _fake_review(platform_label: str, draft: str, idea: str = "", scene: str | None = None) -> dict:
+    """Reviewer 永远把草稿前面拼一段「[改稿] 」并报 1 个挑刺。"""
+    rewritten = f"[改稿]{draft}"
+    return {
+        "issues": [{"quote": draft[:10], "problem": "AI 腔太重"}],
+        "rewritten": rewritten,
+        "changed": True,
+        "token_usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        "error": None,
+    }
+
+
 # ── Session-scoped setup ──────────────────────────────────────────────
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -96,12 +108,14 @@ def _mock_llm(monkeypatch):
     monkeypatch.setattr(agents_module, "run_content_production", _fake_production)
     monkeypatch.setattr(agents_module, "run_distribution_strategy", _fake_distribution)
     monkeypatch.setattr(agents_module, "run_title_optimization", _fake_title_optimization)
+    monkeypatch.setattr(agents_module, "run_content_review", _fake_review)
 
     from app.services import idea_workflow as wf
     monkeypatch.setattr(wf, "run_value_judge", _fake_value_judge)
     monkeypatch.setattr(wf, "run_content_production", _fake_production)
     monkeypatch.setattr(wf, "run_distribution_strategy", _fake_distribution)
     monkeypatch.setattr(wf, "run_title_optimization", _fake_title_optimization)
+    monkeypatch.setattr(wf, "run_content_review", _fake_review)
 
 
 @pytest_asyncio.fixture

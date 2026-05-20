@@ -8,6 +8,8 @@ from app.services.prompt_loader import (
     assemble_value_judge_prompt,
     assemble_content_production_prompt,
     load_distribution_prompt,
+    load_reviewer_prompt,
+    load_style_samples,
 )
 from app.services.search import search_competitors, format_search_results, SearchError, fetch_urls, format_url_content
 from app.core.platforms import all_platforms
@@ -74,6 +76,7 @@ async def run_content_production(
     idea: str,
     selected_types: list[str] | None = None,
     brief: str = "",
+    scene: str | None = None,
 ) -> dict:
     """Produce content: full package including gzh, xhs, video script, titles.
 
@@ -122,7 +125,7 @@ async def run_content_production(
     research_brief = "\n\n".join(research_parts) if research_parts else ""
 
     prompt = assemble_content_production_prompt(
-        idea, selected_types, brief=brief, research_brief=research_brief,
+        idea, selected_types, brief=brief, research_brief=research_brief, scene=scene,
     )
     system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
 
@@ -369,6 +372,72 @@ async def run_distribution_strategy(
     return {
         "strategy": data,
         "token_usage": result.get("usage"),
+    }
+
+
+async def run_content_review(
+    platform_label: str,
+    draft: str,
+    idea: str = "",
+    scene: str | None = None,
+) -> dict:
+    """Self-review pass: 主编挑刺并重写一段内容。
+
+    Args:
+        platform_label: 中文平台名（公众号 / 小红书 / 抖音脚本 / B站脚本）
+        draft: 草稿原文
+        idea: 原始选题（用于提供上下文）
+
+    Returns:
+        {
+          "issues": [{"quote": str, "problem": str}, ...],
+          "rewritten": str,        # 失败时为原 draft
+          "changed": bool,          # rewritten != draft
+          "token_usage": dict,
+          "error": str | None,
+        }
+    """
+    if not draft or not draft.strip():
+        return {"issues": [], "rewritten": draft, "changed": False, "token_usage": None, "error": "empty_draft"}
+
+    system = load_reviewer_prompt()
+    style_block = load_style_samples()
+    from app.services.prompt_loader import load_scene_prompt
+    scene_block = load_scene_prompt(scene)
+
+    user_prompt = f"""{scene_block}{style_block}
+【平台】{platform_label}
+
+【原始选题】
+{idea or "(未提供)"}
+
+【AI 草稿】
+{draft}
+
+请按系统提示的格式，挑出 3-5 个具体问题并重写。严格输出 JSON。"""
+
+    try:
+        result = await call_llm(user_prompt, system_prompt=system)
+        raw = result["content"]
+        data = parse_json_response(raw)
+    except LLMError as e:
+        logger.warning(f"Review failed ({platform_label}): {e}")
+        return {"issues": [], "rewritten": draft, "changed": False, "token_usage": None, "error": str(e)}
+    except Exception as e:
+        logger.exception(f"Review unexpected error ({platform_label})")
+        return {"issues": [], "rewritten": draft, "changed": False, "token_usage": None, "error": str(e)}
+
+    issues = data.get("issues") or []
+    rewritten = (data.get("rewritten") or "").strip()
+    if not rewritten:
+        return {"issues": issues, "rewritten": draft, "changed": False, "token_usage": result.get("usage"), "error": "empty_rewrite"}
+
+    return {
+        "issues": issues if isinstance(issues, list) else [],
+        "rewritten": rewritten,
+        "changed": rewritten != draft.strip(),
+        "token_usage": result.get("usage"),
+        "error": None,
     }
 
 

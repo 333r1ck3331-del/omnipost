@@ -3,6 +3,7 @@ const API = "/api";
 export interface Idea {
   id: string;
   idea_text: string;
+  scene: string | null;
   status: string;
   gate1_score: number | null;
   gate1_result: Gate1Result | null;
@@ -16,6 +17,7 @@ export interface Idea {
   image_plans?: { gzh?: any; xhs?: any } | null;
   video_storyboard?: { video?: any; bilibili?: any } | null;
   final_content: Record<string, unknown> | null;
+  review_log?: Record<string, { changed: boolean; issues: { quote: string; problem: string }[]; error?: string | null }> | null;
   publish_url: string | null;
   notes: string | null;
   distribution_strategy: DistributionStrategy | null;
@@ -47,6 +49,7 @@ export interface DistributionStrategy {
 export interface IdeaSummary {
   id: string;
   idea_text: string;
+  scene?: string | null;
   status: string;
   gate1_score: number | null;
   created_at: string;
@@ -70,10 +73,20 @@ async function fetchJSON(url: string, options?: RequestInit) {
   return data;
 }
 
-export async function createIdea(ideaText: string): Promise<Idea> {
+export interface SceneOption {
+  value: string;
+  label: string;
+}
+
+export async function listScenes(): Promise<SceneOption[]> {
+  const data = await fetchJSON<{ scenes: SceneOption[] }>(`${API}/ideas/scenes`);
+  return data.scenes;
+}
+
+export async function createIdea(ideaText: string, scene?: string | null): Promise<Idea> {
   return fetchJSON(`${API}/ideas`, {
     method: "POST",
-    body: JSON.stringify({ idea_text: ideaText }),
+    body: JSON.stringify({ idea_text: ideaText, scene: scene || null }),
   });
 }
 
@@ -152,6 +165,8 @@ export interface UserConfig {
   api_key: string;
   model?: string;
   tavily_enabled: boolean;
+  auto_review?: boolean;
+  style_samples?: string;
 }
 
 /** Public view of config — API key is never exposed, only set status + hint. */
@@ -161,6 +176,8 @@ export interface UserConfigPublic {
   api_key_hint: string;
   model?: string;
   tavily_enabled: boolean;
+  auto_review?: boolean;
+  style_samples?: string;
 }
 
 export async function getConfig(): Promise<UserConfigPublic> {

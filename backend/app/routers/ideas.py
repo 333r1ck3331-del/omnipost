@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ideas", tags=["ideas"])
 
 
+@router.get("/scenes")
+async def list_scenes():
+    """场景白名单 — 给前端下拉用。"""
+    from app.services.prompt_loader import SCENES
+    return {"scenes": [{"value": k, "label": v} for k, v in SCENES.items()]}
+
+
 # ── Reads ────────────────────────────────────────────────────────────
 
 @router.get("", response_model=IdeaListResponse)
@@ -53,7 +60,7 @@ async def get_idea(idea_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("", response_model=IdeaDetail, status_code=201)
 async def create_idea(body: IdeaCreate, db: AsyncSession = Depends(get_db)):
-    item = await wf.create_idea(db, body.idea_text)
+    item = await wf.create_idea(db, body.idea_text, scene=body.scene)
     return wf.to_detail(item)
 
 

@@ -23,6 +23,7 @@ assert set(RetryType.__args__) == set(all_keys()), (
 
 class IdeaCreate(BaseModel):
     idea_text: str = Field(..., min_length=1, max_length=2000, description="内容点子")
+    scene: Optional[str] = Field(None, description="场景: kepu/guandian/gushi/qinggan/ganhuo/redian，留空=通用")
 
 
 class Gate1Action(BaseModel):
@@ -79,6 +80,7 @@ class IdeaSummary(BaseModel):
 class IdeaDetail(BaseModel):
     id: str
     idea_text: str
+    scene: Optional[str] = None
     status: str
     gate1_score: Optional[int] = None
     gate1_result: Optional[object] = None
@@ -92,6 +94,7 @@ class IdeaDetail(BaseModel):
     image_plans: Optional[dict] = None
     video_storyboard: Optional[dict] = None
     final_content: Optional[dict] = None
+    review_log: Optional[object] = None
     publish_url: Optional[str] = None
     notes: Optional[str] = None
     distribution_strategy: Optional[object] = None

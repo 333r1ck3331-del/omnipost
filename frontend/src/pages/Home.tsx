@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useId } from "react";
 import { useNavigate } from "react-router-dom";
-import { createIdea, listIdeas } from "../api";
-import type { IdeaSummary } from "../api";
+import { createIdea, listIdeas, listScenes } from "../api";
+import type { IdeaSummary, SceneOption } from "../api";
 import IdeaListItem from "../components/IdeaListItem";
 
 export default function Home() {
   const [ideas, setIdeas] = useState<IdeaSummary[]>([]);
   const [input, setInput] = useState("");
+  const [scene, setScene] = useState<string>("");
+  const [scenes, setScenes] = useState<SceneOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -24,13 +26,16 @@ export default function Home() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    listScenes().then(setScenes).catch(() => {});
+  }, []);
 
   async function submit() {
     if (loading || !input.trim()) return;
     setLoading(true);
     setError("");
     try {
-      const idea = await createIdea(input.trim());
+      const idea = await createIdea(input.trim(), scene || null);
       setInput("");
       navigate(`/ideas/${idea.id}`);
     } catch (e: any) {
@@ -70,7 +75,19 @@ export default function Home() {
           disabled={loading}
         />
 
-        <div className="mt-8">
+        <div className="mt-8 flex items-center gap-4 flex-wrap">
+          <select
+            value={scene}
+            onChange={(e) => setScene(e.target.value)}
+            disabled={loading}
+            className="text-sm px-3 py-2 border border-gray-200 rounded bg-white text-gray-700 focus:outline-none focus:border-gray-400"
+            title="选择内容场景（决定写作风格和禁用项）"
+          >
+            <option value="">通用（不限场景）</option>
+            {scenes.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
           <button
             onClick={submit}
             disabled={loading || !input.trim()}

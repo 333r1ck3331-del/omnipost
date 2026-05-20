@@ -110,3 +110,49 @@ async def test_empty_model_is_ok(client):
     )
     assert r.status_code == 200
     assert r.json()["model"] == ""
+
+
+async def test_auto_review_and_style_samples_persist(client):
+    """新增的 auto_review 开关和 style_samples 文本能存能取。"""
+    sample = "这是一段我自己写的风格样本。\n短句。停顿。"
+    r = await client.post(
+        "/api/config",
+        json={
+            "provider": "deepseek",
+            "api_key": "sk-zzz",
+            "tavily_enabled": True,
+            "auto_review": True,
+            "style_samples": sample,
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["auto_review"] is True
+    assert body["style_samples"] == sample
+
+    r2 = await client.get("/api/config")
+    body2 = r2.json()
+    assert body2["auto_review"] is True
+    assert body2["style_samples"] == sample
+
+
+async def test_style_samples_injected_into_prompt(monkeypatch, client):
+    """风格样本应被 prompt_loader 注入。"""
+    await client.post(
+        "/api/config",
+        json={
+            "provider": "deepseek",
+            "api_key": "sk-x",
+            "tavily_enabled": False,
+            "style_samples": "MAGICSTYLE样本ABC",
+        },
+    )
+    from app.services.prompt_loader import load_style_samples
+    block = load_style_samples()
+    assert "MAGICSTYLE样本ABC" in block
+    assert "风格样本" in block
+
+
+async def test_load_style_samples_empty_when_unset(client):
+    from app.services.prompt_loader import load_style_samples
+    assert load_style_samples() == ""

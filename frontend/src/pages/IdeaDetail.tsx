@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getIdea, markPublished } from "../api";
 import type { Idea } from "../api";
-import { STATUS_LABELS } from "../constants";
+import { STATUS_LABELS, SCENE_LABELS } from "../constants";
 import WarningBanner from "../components/WarningBanner";
 import ImagePlansPanel from "../components/ImagePlansPanel";
 import VideoStoryboardPanel from "../components/VideoStoryboardPanel";
@@ -131,10 +131,18 @@ export default function IdeaDetail() {
       <h1 className="text-xl font-medium leading-relaxed mb-3 text-[#2c2c2c]">
         {idea.idea_text}
       </h1>
-      <div className="flex gap-3 text-xs text-gray-400 mb-16">
+      <div className="flex gap-3 text-xs text-gray-400 mb-16 items-center">
         <span>{new Date(idea.created_at).toLocaleString("zh-CN")}</span>
         <span>·</span>
         <span>{STATUS_LABELS[idea.status] || idea.status}</span>
+        {idea.scene && (
+          <>
+            <span>·</span>
+            <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+              场景：{SCENE_LABELS[idea.scene] || idea.scene}
+            </span>
+          </>
+        )}
       </div>
 
       <Gate1Panel idea={idea} isGate1Ready={isGate1Ready} runAction={runAction} />

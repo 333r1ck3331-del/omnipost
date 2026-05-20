@@ -24,6 +24,7 @@ class ContentItem(Base):
     id = Column(String, primary_key=True, default=_uuid)
     idea_text = Column(Text, nullable=False)
     brief = Column(Text, nullable=True, default=None, comment="User's content requirements")
+    scene = Column(String, nullable=True, comment="场景类型：kepu/guandian/gushi/qinggan/ganhuo/redian，空=通用")
     status = Column(String, default="draft", index=True)
 
     # Gate 1 — value judgment
@@ -42,6 +43,7 @@ class ContentItem(Base):
     video_storyboard = Column(Text, nullable=True, comment="JSON: 视频分镜表（镜头/口播/BGM/时长）")
     title_suggestions = Column(Text, nullable=True)
     production_raw = Column(Text, nullable=True)
+    review_log = Column(Text, nullable=True, comment="JSON: 自我审稿挑刺记录 + 是否改写")
     final_content = Column(Text, nullable=True)
 
     # Publish
