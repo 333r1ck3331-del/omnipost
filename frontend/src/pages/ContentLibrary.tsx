@@ -8,6 +8,7 @@ import {
   createTrack,
   deleteEntry,
   deleteTrack,
+  clearTrackEntries,
   exportTrackXlsxUrl,
   importTrackXlsx,
   listEntries,
@@ -232,6 +233,10 @@ function TrackPanel({
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!confirm("导入会向当前赛道追加条目（不会去重 / 不会替换现有数据）。继续？")) {
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setImporting(true);
     try {
       const r = await importTrackXlsx(track.id, file);
@@ -301,6 +306,22 @@ function TrackPanel({
               disabled={importing}
             />
           </label>
+          <button
+            onClick={async () => {
+              if (!confirm(`确定清空"${track.name}"下所有 ${entries.length} 条条目？（赛道保留，条目不可恢复）`)) return;
+              try {
+                const r = await clearTrackEntries(track.id);
+                alert(`已清空 ${r.deleted} 条`);
+                onImported();
+              } catch (err: any) {
+                alert(err.message);
+              }
+            }}
+            disabled={entries.length === 0}
+            className="px-3 py-1.5 text-sm text-orange-600 border border-orange-200 rounded hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            清空条目
+          </button>
           <button
             onClick={onDeleteTrack}
             className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50"
