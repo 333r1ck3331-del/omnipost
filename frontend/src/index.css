@@ -2,10 +2,158 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- 全局基础 ---------- */
+html, body {
+  background: #faf6ee;
+  color: #2a241c;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: #fcfaf7;
-  color: #2c2c2c;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #f8e0cc;
+  color: #4a3f30;
+}
+
+/* 滚动条 - 米色调 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #e8dcc4;
+  border-radius: 999px;
+  border: 2px solid #faf6ee;
+}
+::-webkit-scrollbar-thumb:hover { background: #c9b994; }
+
+/* ---------- 排版 ---------- */
+@layer components {
+  .h-display {
+    @apply font-serif text-3xl text-ink-900 leading-tight;
+    letter-spacing: 0.01em;
+  }
+  .h-section {
+    @apply font-serif text-xl text-ink-900;
+  }
+  .h-eyebrow {
+    @apply text-[11px] uppercase tracking-[0.18em] text-ink-500;
+  }
+
+  /* ---------- 按钮 ---------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5
+           px-4 py-2 text-sm rounded
+           transition-all duration-200
+           border border-transparent
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-accent-500 text-white border-accent-500
+           hover:bg-accent-600 hover:border-accent-600
+           hover:shadow-warm
+           active:translate-y-[1px];
+  }
+  .btn-secondary {
+    @apply btn bg-paper-50 text-ink-900 border-paper-300
+           hover:bg-paper-200 hover:border-paper-400
+           active:translate-y-[1px];
+  }
+  .btn-ghost {
+    @apply btn text-ink-500 border-transparent
+           hover:text-ink-900 hover:bg-paper-200;
+  }
+  .btn-danger {
+    @apply btn text-danger-700 border-transparent
+           hover:bg-danger-50 hover:border-danger-500/30;
+  }
+
+  /* ---------- 卡片 ---------- */
+  .card {
+    @apply bg-paper-50 border border-paper-300 rounded-lg shadow-soft;
+  }
+  .card-pad { @apply card p-6; }
+
+  /* ---------- 输入 ---------- */
+  .input {
+    @apply w-full bg-paper-50 border border-paper-300 rounded
+           px-3 py-2 text-sm text-ink-900
+           placeholder:text-ink-400
+           focus:outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/15
+           transition;
+  }
+  .textarea { @apply input resize-y; }
+  .select   { @apply input pr-8 bg-no-repeat bg-right; }
+
+  /* ---------- 标签 ---------- */
+  .pill {
+    @apply inline-flex items-center px-2 py-0.5 text-xs rounded-full
+           border border-paper-300 text-ink-500 bg-paper-100;
+  }
+  .pill-accent {
+    @apply pill border-accent-500/30 text-accent-700 bg-accent-50;
+  }
+  .pill-success { @apply pill border-success-500/30 text-success-700 bg-success-50; }
+  .pill-warn    { @apply pill border-warn-500/30 text-warn-700 bg-warn-50; }
+  .pill-danger  { @apply pill border-danger-500/30 text-danger-700 bg-danger-50; }
+}
+
+/* ---------- 微动效 ---------- */
+.fade-in { animation: fadeIn 0.25s ease-out both; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* loading skeleton 米色光泽 */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f4ecdd 0%, #faf6ee 50%, #f4ecdd 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* details 折叠箭头 - 自定义 */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  color: #c97b4a;
+  transition: transform 0.2s;
+}
+details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* prose 内容（生成的正文）柔和样式 */
+.prose-warm {
+  color: #2a241c;
+  line-height: 1.85;
+}
+.prose-warm p { margin-bottom: 1em; }
+.prose-warm strong { color: #4a3f30; }
+.prose-warm a { color: #c97b4a; text-decoration: underline; text-underline-offset: 2px; }
+.prose-warm a:hover { color: #b3683a; }
+.prose-warm code {
+  background: #f4ecdd;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
 }

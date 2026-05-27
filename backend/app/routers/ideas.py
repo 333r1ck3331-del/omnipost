@@ -38,11 +38,13 @@ async def list_scenes():
 @router.get("", response_model=IdeaListResponse)
 async def list_ideas(
     status: str | None = None,
+    q: str | None = None,
+    scene: str | None = None,
     limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    return await wf.list_ideas(db, status, limit, offset)
+    return await wf.list_ideas(db, status, limit, offset, q=q, scene=scene)
 
 
 @router.get("/queue/review", response_model=list[IdeaSummary])
@@ -60,7 +62,12 @@ async def get_idea(idea_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("", response_model=IdeaDetail, status_code=201)
 async def create_idea(body: IdeaCreate, db: AsyncSession = Depends(get_db)):
-    item = await wf.create_idea(db, body.idea_text, scene=body.scene)
+    item = await wf.create_idea(
+        db,
+        body.idea_text,
+        scene=body.scene,
+        reference_text=body.reference_text,
+    )
     return wf.to_detail(item)
 
 
@@ -90,7 +97,7 @@ async def produce_content(
     body: ProduceRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    item = await wf.produce_content(db, idea_id, body.types, enrichment_flags=body.enrichment)
+    item = await wf.produce_content(db, idea_id, body.types, enrichment_flags=body.enrichment, style_id=body.style_id)
     return wf.to_detail(item)
 
 

@@ -23,9 +23,9 @@ const STATUS_LABEL: Record<EntryStatus, string> = {
 };
 
 const STATUS_COLORS: Record<EntryStatus, string> = {
-  to_edit: "bg-gray-100 text-gray-700",
-  to_publish: "bg-yellow-100 text-yellow-800",
-  published: "bg-green-100 text-green-800",
+  to_edit: "bg-paper-200 text-ink-700 border border-paper-300",
+  to_publish: "bg-warn-50 text-warn-700 border border-warn-500/30",
+  published: "bg-success-50 text-success-700 border border-success-500/30",
 };
 
 export default function ContentLibrary() {
@@ -135,16 +135,28 @@ export default function ContentLibrary() {
   const activeTrack = tracks.find((t) => t.id === activeTrackId) || null;
 
   if (loading) {
-    return <div className="py-8 text-gray-500">加载中…</div>;
+    return (
+      <div className="space-y-3">
+        <div className="skeleton h-8 w-32" />
+        <div className="skeleton h-10 w-full" />
+        <div className="skeleton h-64" />
+      </div>
+    );
   }
 
   return (
-    <div className="py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">内容库</h1>
-      </div>
+    <div className="space-y-6">
+      <header className="mb-2">
+        <p className="h-eyebrow mb-2">Library</p>
+        <h1 className="h-display">内容库</h1>
+        <p className="text-sm text-ink-500 mt-2">按赛道管理选题、编辑状态、批量导出导入</p>
+      </header>
 
-      {err && <div className="px-3 py-2 bg-red-50 text-red-700 text-sm rounded">{err}</div>}
+      {err && (
+        <div className="px-4 py-3 bg-danger-50/60 border border-danger-500/30 text-danger-700 text-sm rounded-lg">
+          {err}
+        </div>
+      )}
 
       {/* Tracks tab bar */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -152,29 +164,30 @@ export default function ContentLibrary() {
           <button
             key={t.id}
             onClick={() => setActiveTrackId(t.id)}
-            className={`px-3 py-1.5 rounded text-sm transition ${
+            className={`px-4 py-2 rounded-lg text-sm transition border ${
               t.id === activeTrackId
-                ? "bg-gray-900 text-white"
-                : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                ? "bg-accent-500 text-white border-accent-500 shadow-warm"
+                : "bg-paper-50 border-paper-300 text-ink-700 hover:border-accent-400"
             }`}
           >
             {t.name}
-            <span className={`ml-2 text-xs ${t.id === activeTrackId ? "text-gray-300" : "text-gray-400"}`}>
+            <span className={`ml-2 text-xs ${t.id === activeTrackId ? "text-white/70" : "text-ink-400"}`}>
               {t.entry_count}
             </span>
           </button>
         ))}
         <button
           onClick={() => setShowAddTrack(true)}
-          className="px-3 py-1.5 rounded text-sm border border-dashed border-gray-400 text-gray-600 hover:bg-gray-50"
+          className="px-4 py-2 rounded-lg text-sm border border-dashed border-paper-300 text-ink-500 hover:border-accent-400 hover:text-accent-600 transition"
         >
           + 新建赛道
         </button>
       </div>
 
       {tracks.length === 0 && (
-        <div className="py-12 text-center text-gray-500 text-sm">
-          还没有赛道。点击"新建赛道"开始。
+        <div className="card-pad text-center py-16">
+          <p className="font-serif text-xl text-ink-400 mb-2">还没有赛道</p>
+          <p className="text-xs text-ink-400">点击"新建赛道"开始整理你的内容计划</p>
         </div>
       )}
 
@@ -263,39 +276,33 @@ function TrackPanel({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg">
+    <div className="card overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 p-4 border-b border-gray-100 flex-wrap">
-        <div className="flex items-center gap-2">
-          <h2 className="font-medium text-gray-900">{track.name}</h2>
+      <div className="flex items-center justify-between gap-3 p-4 border-b border-paper-300 flex-wrap bg-paper-100/40">
+        <div className="flex items-baseline gap-2">
+          <h2 className="font-serif text-lg text-ink-900">{track.name}</h2>
           {track.description && (
-            <span className="text-sm text-gray-500">— {track.description}</span>
+            <span className="text-sm text-ink-500">— {track.description}</span>
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select
             value={filter}
             onChange={(ev) => setFilter(ev.target.value as EntryStatus | "")}
-            className="px-2 py-1 text-sm border border-gray-300 rounded"
+            className="px-3 py-1.5 text-sm border border-paper-300 rounded bg-paper-50"
           >
             <option value="">全部状态</option>
             <option value="to_edit">待编辑</option>
             <option value="to_publish">待发布</option>
             <option value="published">已发布</option>
           </select>
-          <button
-            onClick={onAddEntry}
-            className="px-3 py-1.5 text-sm bg-gray-900 text-white rounded hover:bg-gray-800"
-          >
+          <button onClick={onAddEntry} className="btn-primary text-xs">
             + 添加条目
           </button>
-          <a
-            href={exportTrackXlsxUrl(track.id)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
-          >
+          <a href={exportTrackXlsxUrl(track.id)} className="btn-secondary text-xs">
             导出 Excel
           </a>
-          <label className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 cursor-pointer">
+          <label className="btn-secondary text-xs cursor-pointer">
             {importing ? "导入中…" : "导入 Excel"}
             <input
               ref={fileRef}
@@ -318,13 +325,13 @@ function TrackPanel({
               }
             }}
             disabled={entries.length === 0}
-            className="px-3 py-1.5 text-sm text-orange-600 border border-orange-200 rounded hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 text-xs text-warn-700 border border-warn-500/30 rounded hover:bg-warn-50/40 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             清空条目
           </button>
           <button
             onClick={onDeleteTrack}
-            className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50"
+            className="px-3 py-1.5 text-xs text-danger-700 border border-danger-500/30 rounded hover:bg-danger-50/40 transition"
           >
             删除赛道
           </button>
@@ -333,25 +340,26 @@ function TrackPanel({
 
       {/* Batch actions */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border-b border-blue-100 text-sm">
-          <span className="text-blue-900">已选 {selected.size} 条</span>
-          <span className="text-gray-400">|</span>
-          <span>批量改状态：</span>
-          <button onClick={() => onBatchStatus("to_edit")} className="px-2 py-0.5 rounded hover:bg-blue-100">待编辑</button>
-          <button onClick={() => onBatchStatus("to_publish")} className="px-2 py-0.5 rounded hover:bg-blue-100">待发布</button>
-          <button onClick={() => onBatchStatus("published")} className="px-2 py-0.5 rounded hover:bg-blue-100">已发布</button>
+        <div className="flex items-center gap-2 px-4 py-2 bg-accent-50/60 border-b border-accent-500/20 text-sm fade-in">
+          <span className="text-accent-700 font-medium">已选 {selected.size} 条</span>
+          <span className="text-ink-400">|</span>
+          <span className="text-ink-700">批量改状态：</span>
+          <button onClick={() => onBatchStatus("to_edit")} className="px-2 py-0.5 rounded text-xs hover:bg-paper-200/60 transition">待编辑</button>
+          <button onClick={() => onBatchStatus("to_publish")} className="px-2 py-0.5 rounded text-xs hover:bg-paper-200/60 transition">待发布</button>
+          <button onClick={() => onBatchStatus("published")} className="px-2 py-0.5 rounded text-xs hover:bg-paper-200/60 transition">已发布</button>
         </div>
       )}
 
       {/* Table */}
       {entries.length === 0 ? (
-        <div className="py-12 text-center text-gray-500 text-sm">
-          赛道下还没有条目，点击"添加条目"或"导入 Excel"开始。
+        <div className="py-16 text-center">
+          <p className="font-serif text-lg text-ink-400 mb-1">赛道空空如也</p>
+          <p className="text-xs text-ink-400">点击"添加条目"或"导入 Excel"开始</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-paper-100/60 text-ink-500">
               <tr>
                 <th className="w-10 px-3 py-2 text-left">
                   <input
@@ -360,15 +368,15 @@ function TrackPanel({
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-3 py-2 text-left">标题</th>
-                <th className="px-3 py-2 text-left">选题方向</th>
-                <th className="px-3 py-2 text-left">发布日期</th>
-                <th className="px-3 py-2 text-left">状态</th>
-                <th className="px-3 py-2 text-left">备注</th>
+                <th className="px-3 py-2 text-left font-medium">标题</th>
+                <th className="px-3 py-2 text-left font-medium">选题方向</th>
+                <th className="px-3 py-2 text-left font-medium">发布日期</th>
+                <th className="px-3 py-2 text-left font-medium">状态</th>
+                <th className="px-3 py-2 text-left font-medium">备注</th>
                 <th className="w-16 px-3 py-2"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-paper-300">
               {entries.map((e) => (
                 <EntryRow
                   key={e.id}
@@ -483,39 +491,39 @@ function AddTrackModal({ onClose, onSubmit }: ModalProps) {
   const [description, setDescription] = useState("");
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20" onClick={onClose}>
+    <div className="fixed inset-0 bg-ink-900/50 backdrop-blur-sm flex items-center justify-center z-30 fade-in" onClick={onClose}>
       <div
-        className="bg-white rounded-lg p-6 w-96 max-w-full"
+        className="bg-paper-50 border border-paper-300 shadow-lift rounded-xl p-6 w-96 max-w-full"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-medium mb-4">新建赛道</h3>
-        <div className="space-y-3">
+        <h3 className="font-serif text-xl text-ink-900 mb-4">新建赛道</h3>
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">名称 *</label>
+            <label className="block text-sm text-ink-700 mb-1.5">名称 <span className="text-danger-500">*</span></label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="如：心理赛道"
-              className="w-full px-3 py-1.5 border border-gray-300 rounded"
+              className="input"
               autoFocus
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-1">描述（可选）</label>
+            <label className="block text-sm text-ink-700 mb-1.5">描述（可选）</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded"
+              className="textarea"
             />
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">取消</button>
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="btn-ghost">取消</button>
           <button
             onClick={() => name.trim() && onSubmit(name.trim(), description.trim())}
             disabled={!name.trim()}
-            className="px-3 py-1.5 text-sm bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50"
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             创建
           </button>

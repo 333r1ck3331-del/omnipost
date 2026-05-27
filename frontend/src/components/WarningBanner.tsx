@@ -20,17 +20,20 @@ export default function WarningBanner({ idea }: { idea: Idea }) {
   if (!items.length) return null;
 
   return (
-    <div className="mb-6 space-y-2">
+    <div className="mb-8 space-y-2 fade-in">
       {items.map((it, i) => (
         <div
           key={i}
-          className={`px-3 py-2 rounded text-xs border ${
+          className={`flex items-start gap-3 px-4 py-3 rounded-lg text-sm border ${
             it.level === "warn"
-              ? "bg-red-50 border-red-200 text-red-700"
-              : "bg-blue-50 border-blue-200 text-blue-700"
+              ? "bg-warn-50/60 border-warn-500/30 text-warn-700"
+              : "bg-accent-50/60 border-accent-500/30 text-accent-700"
           }`}
         >
-          {it.text}
+          <span className="font-serif text-lg leading-none mt-0.5">
+            {it.level === "warn" ? "⚠" : "✦"}
+          </span>
+          <span className="flex-1 leading-relaxed">{it.text}</span>
         </div>
       ))}
     </div>

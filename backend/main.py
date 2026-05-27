@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import DEBUG
 from app.core.database import init_db, async_session
-from app.routers import ideas, config, library, crawl
+from app.routers import ideas, config, library, crawl, styles
 from sqlalchemy import select, update
 from app.models import ContentItem
 
@@ -77,6 +77,7 @@ app.include_router(ideas.router)
 app.include_router(config.router)
 app.include_router(library.router)
 app.include_router(crawl.router)
+app.include_router(styles.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

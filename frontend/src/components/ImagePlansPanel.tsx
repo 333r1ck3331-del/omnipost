@@ -21,39 +21,63 @@ interface Props {
   imagePlans: { gzh?: PlatformPlan; xhs?: PlatformPlan } | null | undefined;
 }
 
-function copyText(text: string) {
-  navigator.clipboard.writeText(text).catch(() => {});
+function copyText(text: string, onDone?: () => void) {
+  navigator.clipboard.writeText(text).then(() => onDone?.()).catch(() => {});
 }
 
 function ImageCard({ plan, label }: { plan: ImagePlan; label: string }) {
   const [tab, setTab] = useState<"mj" | "dalle">("mj");
+  const [copied, setCopied] = useState(false);
   const prompt = tab === "mj" ? plan.midjourney_prompt : plan.dalle_prompt;
+
+  const handleCopy = () => {
+    if (!prompt) return;
+    copyText(prompt, () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-medium text-gray-700">{label}</div>
-        {plan.position && <div className="text-xs text-gray-400">{plan.position}</div>}
+    <div className="card-pad">
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-serif text-sm text-ink-900">{label}</div>
+        {plan.position && <div className="pill text-[10px]">{plan.position}</div>}
       </div>
-      {plan.concept && <div className="text-sm text-gray-800 mb-1">{plan.concept}</div>}
-      {plan.composition && <div className="text-xs text-gray-500 mb-1">构图：{plan.composition}</div>}
-      {plan.style && <div className="text-xs text-gray-500 mb-3">风格：{plan.style}</div>}
-      <div className="flex gap-1 mb-2">
+      {plan.concept && <div className="text-sm text-ink-900 mb-2 leading-relaxed">{plan.concept}</div>}
+      {(plan.composition || plan.style) && (
+        <div className="text-xs text-ink-500 space-y-0.5 mb-3">
+          {plan.composition && <div>构图 · {plan.composition}</div>}
+          {plan.style && <div>风格 · {plan.style}</div>}
+        </div>
+      )}
+      <div className="flex gap-1 mb-2 border-b border-paper-300">
         <button
           onClick={() => setTab("mj")}
-          className={`text-xs px-2 py-0.5 rounded ${tab === "mj" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}
+          className={`text-xs px-3 py-1.5 transition border-b-2 -mb-px ${
+            tab === "mj"
+              ? "border-accent-500 text-accent-700"
+              : "border-transparent text-ink-500 hover:text-ink-900"
+          }`}
         >Midjourney</button>
         <button
           onClick={() => setTab("dalle")}
-          className={`text-xs px-2 py-0.5 rounded ${tab === "dalle" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}
-        >DALL-E</button>
+          className={`text-xs px-3 py-1.5 transition border-b-2 -mb-px ${
+            tab === "dalle"
+              ? "border-accent-500 text-accent-700"
+              : "border-transparent text-ink-500 hover:text-ink-900"
+          }`}
+        >DALL·E</button>
         {prompt && (
           <button
-            onClick={() => copyText(prompt)}
-            className="ml-auto text-xs text-gray-500 hover:text-gray-900"
-          >复制</button>
+            onClick={handleCopy}
+            className="ml-auto text-xs text-accent-600 hover:text-accent-700 transition px-2"
+          >
+            {copied ? "✓ 已复制" : "复制 prompt"}
+          </button>
         )}
       </div>
-      <pre className="text-xs bg-gray-50 p-2 rounded whitespace-pre-wrap break-words text-gray-700">
+      <pre className="text-xs bg-paper-100 p-3 rounded whitespace-pre-wrap break-words text-ink-700 font-mono leading-relaxed">
         {prompt || "（未生成）"}
       </pre>
     </div>
@@ -65,12 +89,12 @@ export default function ImagePlansPanel({ imagePlans }: Props) {
 
   return (
     <section className="mb-12">
-      <h2 className="text-xs text-gray-400 tracking-wider mb-4">配图方案</h2>
+      <p className="h-eyebrow mb-5">配图方案</p>
 
       {imagePlans.gzh && (
         <div className="mb-8">
-          <div className="text-sm text-gray-700 mb-3">公众号</div>
-          <div className="space-y-3">
+          <div className="font-serif text-base text-ink-900 mb-3">公众号</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {imagePlans.gzh.cover && <ImageCard plan={imagePlans.gzh.cover} label="封面" />}
             {imagePlans.gzh.inline_images?.map((img, i) => (
               <ImageCard key={i} plan={img} label={`正文配图 ${i + 1}`} />
@@ -81,11 +105,15 @@ export default function ImagePlansPanel({ imagePlans }: Props) {
 
       {imagePlans.xhs && (
         <div>
-          <div className="text-sm text-gray-700 mb-3">小红书</div>
-          <div className="space-y-3">
+          <div className="font-serif text-base text-ink-900 mb-3">小红书</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {imagePlans.xhs.cover && <ImageCard plan={imagePlans.xhs.cover} label="封面" />}
             {imagePlans.xhs.carousel?.map((img, i) => (
-              <ImageCard key={i} plan={img} label={`轮播图 ${img.index ?? i + 1}${img.role ? ` · ${img.role}` : ""}`} />
+              <ImageCard
+                key={i}
+                plan={img}
+                label={`轮播图 ${img.index ?? i + 1}${img.role ? ` · ${img.role}` : ""}`}
+              />
             ))}
           </div>
         </div>

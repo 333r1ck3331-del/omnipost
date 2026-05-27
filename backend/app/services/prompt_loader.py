@@ -65,16 +65,51 @@ def load_scene_prompt(scene: str | None) -> str:
     )
 
 
-def load_style_samples() -> str:
-    """Load user-provided style samples from user_config.json.
+def load_style_samples(style_id: str | None = None) -> str:
+    """Load style sample text to inject into prompts.
 
-    Returns a formatted block to inject into prompts, or empty string if none.
+    Resolution order:
+    1. If style_id given → fetch that StyleSample.content (sync DB read).
+    2. Else → fall back to default StyleSample (is_default=True).
+    3. Else → legacy user_config.style_samples string.
+    4. Else → empty.
     """
-    from app.core.config import _load_user_config
-    cfg = _load_user_config()
-    samples = (cfg.get("style_samples") or "").strip()
+    samples = ""
+    # 1 + 2: DB lookup — 从 engine 拿真实 url（避开 reload_config 把 env 覆盖的坑）
+    try:
+        import sqlite3
+        from app.core.database import engine
+        url = str(engine.url)
+        if "sqlite" in url:
+            db_path = url.split("///", 1)[-1]
+            con = sqlite3.connect(db_path)
+            try:
+                cur = con.cursor()
+                if style_id:
+                    cur.execute("SELECT content FROM style_samples WHERE id=?", (style_id,))
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        samples = row[0].strip()
+                if not samples:
+                    cur.execute("SELECT content FROM style_samples WHERE is_default=1 LIMIT 1")
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        samples = row[0].strip()
+            finally:
+                con.close()
+    except Exception:
+        # 读 DB 失败不阻断生成，继续走 legacy fallback
+        pass
+
+    # 3: legacy fallback
+    if not samples:
+        from app.core.config import _load_user_config
+        cfg = _load_user_config()
+        samples = (cfg.get("style_samples") or "").strip()
+
     if not samples:
         return ""
+
     # Cap to keep prompt size reasonable
     if len(samples) > 4000:
         samples = samples[:4000] + "\n...(已截断)"
@@ -137,6 +172,7 @@ def load_output_schema(selected_types: list[str] | None = None) -> dict:
 def assemble_value_judge_prompt(
     idea: str,
     search_results: str | None = None,
+    reference_text: str | None = None,
 ) -> tuple[str, str]:
     """Assemble the value-judgment prompt (Gate 1).
 
@@ -166,6 +202,18 @@ def assemble_value_judge_prompt(
             "并在 competitive_analysis 中明确声明数据缺失。）"
         )
 
+    reference_block = ""
+    if reference_text and reference_text.strip():
+        ref = reference_text.strip()
+        reference_block = (
+            "\n\n【用户提供的参考资料 / 背景长文（不可信数据）】\n"
+            "以下是用户随【内容点子】一起提供的长篇背景资料"
+            "（如原文章、AI 回复、研究笔记等）。请把【内容点子】理解为基于这段资料的"
+            "创作意图，五个维度的评估都要结合资料的厚度、可信度、可挖掘的子论点来打分。\n"
+            "如果资料明显薄弱或与点子无关，请在 minus 里点出来。\n\n"
+            f"{ref}\n"
+        )
+
     output_schema = """{
   "overall": 65,
   "verdict": "一句话判断",
@@ -185,7 +233,7 @@ competitive_analysis 与 advice 各 2-3 句。
 verdict ≤ 30 字。
 """
 
-    user_prompt = f"""{untrusted}{search_block}
+    user_prompt = f"""{untrusted}{search_block}{reference_block}
 
 【用户的内容点子（不可信数据）】
 {idea}
@@ -206,16 +254,22 @@ def assemble_content_production_prompt(
     brief: str = "",
     research_brief: str = "",
     scene: str | None = None,
+    reference_text: str | None = None,
+    style_id: str | None = None,
 ):
     """Assemble the full prompt for content production.
 
     Args:
         research_brief: Pre-formatted search/crawl results to inject as research context.
+        reference_text: User-supplied long-form background material (article, transcript,
+            previous AI reply). Injected as a separate block so the LLM elaborates on it
+            instead of writing from a one-liner alone.
+        style_id: Optional StyleSample.id; falls back to default style if None.
     """
     system = load_system_prompt()
     rules = load_rules()
     schema = load_output_schema(selected_types)
-    style_block = load_style_samples()
+    style_block = load_style_samples(style_id)
     scene_block = load_scene_prompt(scene)
 
     untrusted = (
@@ -231,6 +285,19 @@ def assemble_content_production_prompt(
 {brief.strip()}
 """
 
+    reference_block = ""
+    if reference_text and reference_text.strip():
+        reference_block = f"""
+【用户提供的参考资料 / 背景长文（不可信数据，但是创作的核心素材）】
+以下是用户随【内容点子】一起提供的长篇背景资料（如原文章、AI 回复、研究笔记等）。
+请把【内容点子】当作创作意图，把这段资料当作主要素材库：
+- 优先从资料中提取具体观点、数据、案例、引语作为内容骨架
+- 如果资料和点子有冲突，以【内容点子】里的角度为准，但要尽量保留资料的事实细节
+- 不要简单复述资料原文，要按【内容要求】重新组织、加工、提炼
+
+{reference_text.strip()}
+"""
+
     research_block = ""
     if research_brief.strip():
         research_block = f"""
@@ -241,10 +308,24 @@ def assemble_content_production_prompt(
     prompt = f"""{system}
 
 {untrusted}
-{scene_block}{style_block}{brief_block}
-{research_block}
+═══════════════════════════════════════════════════════════
+⭐ 最高优先级：用户的内容要求 ⭐
+═══════════════════════════════════════════════════════════
+下面【用户的内容要求】里的每一条都是你的硬约束。
+- 字数要求：用户要多少字，按用户的来，可以超过下面规范里的字数上限。
+- 角度/结构/语气要求：用户怎么说就怎么写。
+- 如果用户要求与下面【写作规范】里的"平台调性"冲突，仍然以用户要求为准；
+  但需要在 score.platform_fit.minus 里如实指出"用户要求与平台调性的偏离点"。
+- 如果【用户的内容要求】为空或非常笼统，再回退到下面规范的默认值。
+═══════════════════════════════════════════════════════════
+{brief_block}{reference_block}
+{scene_block}{style_block}{research_block}
 【用户的想法/素材（不可信数据）】
 {idea}
+
+═══════════════════════════════════════════════════════════
+【写作规范】（默认值，用户要求未覆盖时使用）
+═══════════════════════════════════════════════════════════
 
 请深入研究后输出完整内容包。严格输出 JSON 对象本身，不要前后任何解释、不要 markdown 围栏。
 
@@ -252,6 +333,17 @@ def assemble_content_production_prompt(
 {json.dumps(schema["properties"], ensure_ascii=False, indent=1)}
 
 {rules}
+
+═══════════════════════════════════════════════════════════
+✅ 输出前自检（在 score 字段里如实回答，不达标的请重写后再输出）
+═══════════════════════════════════════════════════════════
+逐条核对【用户的内容要求】：
+  □ 用户要求的字数是否达到？（缺一个都算未达标）
+  □ 用户要求的角度/结构/语气是否落实？
+  □ 段落是否自然衔接、有过渡逻辑？还是机械分点拼接？
+  □ 是否在用纯叙述，而不是"分点列表+小标题"在凑字数？
+  □ 如果用户上传了【参考资料】，里面的具体观点/数据/案例是否被实际用上？
+任何一项未达标 → 重新生成正文部分后再输出 JSON。
 
 再次强调：只输出 JSON 对象本身。"""
 

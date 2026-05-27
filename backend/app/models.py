@@ -23,6 +23,7 @@ class ContentItem(Base):
 
     id = Column(String, primary_key=True, default=_uuid)
     idea_text = Column(Text, nullable=False)
+    reference_text = Column(Text, nullable=True, default=None, comment="参考资料 / 背景长文（创作时塞进 prompt）")
     brief = Column(Text, nullable=True, default=None, comment="User's content requirements")
     scene = Column(String, nullable=True, comment="场景类型：kepu/guandian/gushi/qinggan/ganhuo/redian，空=通用")
     enrichment_flags = Column(Text, nullable=True, comment="JSON: {topic_articles:bool, counter_views:bool, data_cases:bool}")
@@ -33,6 +34,7 @@ class ContentItem(Base):
     gate1_score = Column(Integer, nullable=True)
     gate1_result = Column(Text, nullable=True)
     gate1_passed = Column(Boolean, default=False)
+    gate1_research = Column(Text, nullable=True, comment="JSON: Tavily 搜索原始结果（注入 prompt 的依据）")
 
     # Production
     selected_types = Column(Text, nullable=True)
@@ -54,6 +56,9 @@ class ContentItem(Base):
 
     # Distribution strategy — generated after review approval
     distribution_strategy = Column(Text, nullable=True)
+
+    # Style: 选用的命名风格 id（None = 不用风格）
+    style_id = Column(String, nullable=True, comment="StyleSample.id; null=不用风格")
 
     created_at = Column(DateTime(timezone=True), default=_now, index=True)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now, index=True)
@@ -178,3 +183,18 @@ class CrawlItem(Base):
     __table_args__ = (
         Index("ix_crawl_item_batch_published", "batch_id", "published_at"),
     )
+
+
+# ── Phase 4: Writing Style Library ──────────────────────────────────
+
+class StyleSample(Base):
+    """命名的写作风格样本（可保存多条，按 id 选用）。"""
+    __tablename__ = "style_samples"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    name = Column(String, nullable=False, comment="风格名（如：公众号-深度文 / 小红书-感性）")
+    content = Column(Text, nullable=False, comment="风格样本正文")
+    is_default = Column(Boolean, default=False, nullable=False, comment="未指定时使用此条；最多一条 True")
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)

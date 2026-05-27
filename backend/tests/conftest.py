@@ -32,7 +32,7 @@ import main as main_module
 
 # ── Fakes ─────────────────────────────────────────────────────────────
 
-async def _fake_value_judge(idea: str) -> dict:
+async def _fake_value_judge(idea: str, reference_text: str | None = None) -> dict:
     return {
         "score": 78,
         "details": {"overall": 78, "verdict": "ok"},
@@ -42,7 +42,7 @@ async def _fake_value_judge(idea: str) -> dict:
     }
 
 
-async def _fake_production(idea: str, selected_types=None, brief: str = "", scene: str | None = None, extra_research: str = "") -> dict:
+async def _fake_production(idea: str, selected_types=None, brief: str = "", scene: str | None = None, extra_research: str = "", style_id: str | None = None, **_kwargs) -> dict:
     selected_types = selected_types or ["gzh"]
     out = {
         "content_gzh": None,
@@ -74,7 +74,7 @@ async def _fake_title_optimization(idea: str, existing=None) -> dict:
     return {"titles": ["新标题1", "新标题2", "新标题3"]}
 
 
-async def _fake_review(platform_label: str, draft: str, idea: str = "", scene: str | None = None) -> dict:
+async def _fake_review(platform_label: str, draft: str, idea: str = "", scene: str | None = None, style_id: str | None = None, **_kwargs) -> dict:
     """Reviewer 永远把草稿前面拼一段「[改稿] 」并报 1 个挑刺。"""
     rewritten = f"[改稿]{draft}"
     return {

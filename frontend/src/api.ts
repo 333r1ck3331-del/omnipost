@@ -4,10 +4,12 @@ export interface Idea {
   id: string;
   idea_text: string;
   scene: string | null;
+  reference_text?: string | null;
   status: string;
   gate1_score: number | null;
   gate1_result: Gate1Result | null;
   gate1_passed: boolean;
+  gate1_research: Gate1Research | null;
   selected_types: string[] | null;
   content_gzh: string | null;
   content_xhs: string | null;
@@ -23,6 +25,7 @@ export interface Idea {
   publish_url: string | null;
   notes: string | null;
   distribution_strategy: DistributionStrategy | null;
+  style_id?: string | null;
   created_at: string;
   updated_at: string;
   version: number;
@@ -39,6 +42,17 @@ export interface Gate1Result {
   competitive_analysis?: string;
   advice?: string;
   error?: string;
+}
+export interface Gate1SearchHit {
+  title?: string;
+  url?: string;
+  content?: string;
+  score?: number;
+  [k: string]: any;
+}
+export interface Gate1Research {
+  search_used?: boolean;
+  search_results?: Gate1SearchHit[];
 }
 export interface DistributionStrategy {
   platforms?: Record<string, any>;
@@ -69,10 +83,37 @@ async function fetchJSON(url: string, options?: RequestInit) {
     try { data = JSON.parse(text); } catch { /* keep null */ }
   }
   if (!res.ok) {
-    const msg = data?.detail || data?.message || `请求失败 (${res.status})`;
-    throw new Error(msg);
+    throw new Error(formatApiError(data, res.status));
   }
   return data;
+}
+
+/** 把后端错误（FastAPI 422 detail 是数组、500 是字符串、其它格式）规范成可读中文。 */
+function formatApiError(data: any, status: number): string {
+  // FastAPI 422: detail 是 [{loc, msg, type}, ...]
+  const detail = data?.detail;
+  if (Array.isArray(detail)) {
+    const parts = detail.map((e: any) => {
+      const loc = Array.isArray(e?.loc) ? e.loc.filter((s: any) => s !== "body").join(".") : "";
+      const msg = e?.msg || e?.message || "";
+      // 校验长度类错误，给个更友好的中文提示
+      if (typeof msg === "string" && /String should have at most (\d+) character/i.test(msg)) {
+        const m = msg.match(/(\d+)/);
+        return `${loc || "字段"} 内容超过最大长度限制（${m?.[1] || "?"} 字符）`;
+      }
+      if (typeof msg === "string" && /String should have at least (\d+) character/i.test(msg)) {
+        return `${loc || "字段"} 内容不能为空`;
+      }
+      return loc ? `${loc}: ${msg}` : msg;
+    }).filter(Boolean);
+    if (parts.length) return parts.join("；");
+  }
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") {
+    try { return JSON.stringify(detail); } catch { /* fallthrough */ }
+  }
+  if (typeof data?.message === "string") return data.message;
+  return `请求失败 (${status})`;
 }
 
 export interface SceneOption {
@@ -81,19 +122,39 @@ export interface SceneOption {
 }
 
 export async function listScenes(): Promise<SceneOption[]> {
-  const data = await fetchJSON<{ scenes: SceneOption[] }>(`${API}/ideas/scenes`);
+  const data = await fetchJSON(`${API}/ideas/scenes`) as { scenes: SceneOption[] };
   return data.scenes;
 }
 
-export async function createIdea(ideaText: string, scene?: string | null): Promise<Idea> {
+export async function createIdea(
+  ideaText: string,
+  scene?: string | null,
+  referenceText?: string | null,
+): Promise<Idea> {
   return fetchJSON(`${API}/ideas`, {
     method: "POST",
-    body: JSON.stringify({ idea_text: ideaText, scene: scene || null }),
+    body: JSON.stringify({
+      idea_text: ideaText,
+      scene: scene || null,
+      reference_text: referenceText && referenceText.trim() ? referenceText : null,
+    }),
   });
 }
 
-export async function listIdeas(status?: string): Promise<{ items: IdeaSummary[]; total: number }> {
-  const url = status ? `${API}/ideas?status=${encodeURIComponent(status)}` : `${API}/ideas`;
+export async function listIdeas(params?: {
+  status?: string;
+  q?: string;
+  scene?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ items: IdeaSummary[]; total: number; limit: number; offset: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.scene) qs.set("scene", params.scene);
+  if (params?.limit != null) qs.set("limit", String(params.limit));
+  if (params?.offset != null) qs.set("offset", String(params.offset));
+  const url = qs.toString() ? `${API}/ideas?${qs}` : `${API}/ideas`;
   return fetchJSON(url);
 }
 
@@ -123,10 +184,11 @@ export async function produceContent(
   id: string,
   types: string[],
   enrichment?: EnrichmentFlags,
+  styleId?: string | null,
 ): Promise<Idea> {
   return fetchJSON(`${API}/ideas/${id}/produce`, {
     method: "POST",
-    body: JSON.stringify({ types, enrichment: enrichment || null }),
+    body: JSON.stringify({ types, enrichment: enrichment || null, style_id: styleId || null }),
   });
 }
 
@@ -201,6 +263,46 @@ export async function saveConfig(cfg: UserConfig): Promise<UserConfigPublic> {
     method: "POST",
     body: JSON.stringify(cfg),
   });
+}
+
+
+// ── Style Library ────────────────────────────────────────────────────
+
+export interface StyleSample {
+  id: string;
+  name: string;
+  content: string;
+  is_default: boolean;
+  sort_order: number;
+}
+
+export interface StyleSampleInput {
+  name: string;
+  content: string;
+  is_default: boolean;
+  sort_order: number;
+}
+
+export async function listStyles(): Promise<StyleSample[]> {
+  return fetchJSON(`${API}/styles`);
+}
+
+export async function createStyle(body: StyleSampleInput): Promise<StyleSample> {
+  return fetchJSON(`${API}/styles`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateStyle(id: string, body: StyleSampleInput): Promise<StyleSample> {
+  return fetchJSON(`${API}/styles/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteStyle(id: string): Promise<{ ok: boolean }> {
+  return fetchJSON(`${API}/styles/${id}`, { method: "DELETE" });
 }
 
 

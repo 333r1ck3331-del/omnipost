@@ -24,6 +24,11 @@ assert set(RetryType.__args__) == set(all_keys()), (
 class IdeaCreate(BaseModel):
     idea_text: str = Field(..., min_length=1, max_length=2000, description="内容点子")
     scene: Optional[str] = Field(None, description="场景: kepu/guandian/gushi/qinggan/ganhuo/redian，留空=通用")
+    reference_text: Optional[str] = Field(
+        None,
+        max_length=50000,
+        description="参考资料 / 背景长文（最长 50000 字符），AI 会基于它评估并撰写内容",
+    )
 
 
 class Gate1Action(BaseModel):
@@ -38,6 +43,7 @@ class ProduceRequest(BaseModel):
         None,
         description="素材增强开关 {topic_articles:bool, counter_views:bool, data_cases:bool}",
     )
+    style_id: Optional[str] = Field(None, description="StyleSample.id；留空=用默认风格")
 
 
 class BriefRequest(BaseModel):
@@ -85,10 +91,12 @@ class IdeaDetail(BaseModel):
     id: str
     idea_text: str
     scene: Optional[str] = None
+    reference_text: Optional[str] = None
     status: str
     gate1_score: Optional[int] = None
     gate1_result: Optional[object] = None
     gate1_passed: bool
+    gate1_research: Optional[object] = None
     selected_types: Optional[list[str]] = None
     content_gzh: Optional[str] = None
     content_xhs: Optional[str] = None
@@ -105,6 +113,7 @@ class IdeaDetail(BaseModel):
     publish_url: Optional[str] = None
     notes: Optional[str] = None
     distribution_strategy: Optional[object] = None
+    style_id: Optional[str] = None
     created_at: str
     updated_at: str
     version: int

@@ -28,37 +28,40 @@ export default function ReviewQueue() {
 
   return (
     <div>
-      {/* 返回首页 */}
       <button
         onClick={() => navigate("/")}
-        className="text-xs text-gray-400 hover:text-gray-600 mb-8 inline-block"
+        className="btn-ghost text-xs mb-8 -ml-3"
       >
         ← 返回
       </button>
 
-      <h1 className="text-xl font-semibold tracking-tight mb-1">
-        审核队列
-      </h1>
-      <p className="text-xs text-gray-400 mb-12">
-        {items.length} 条待审核内容
-      </p>
+      <header className="mb-10">
+        <p className="h-eyebrow mb-2">Review Queue</p>
+        <h1 className="h-display mb-2">审核队列</h1>
+        <p className="text-sm text-ink-500">
+          {items.length > 0 ? `${items.length} 条内容等待你的判断` : "暂无待审"}
+        </p>
+      </header>
 
       {loading ? (
-        <p className="text-gray-300 text-sm">加载中...</p>
+        <div className="space-y-3">
+          <div className="skeleton h-16" />
+          <div className="skeleton h-16" />
+        </div>
       ) : error ? (
-        <p className="text-red-500 text-sm">{error}</p>
+        <div className="card-pad text-center text-danger-700">
+          <p className="text-sm">{error}</p>
+          <button onClick={load} className="btn-secondary mt-4 text-xs">重试</button>
+        </div>
       ) : items.length === 0 ? (
-        <div className="py-16 text-center">
-          <p className="text-gray-300 text-sm">队列已清空 🎉</p>
-          <p className="text-gray-300 text-xs mt-2">所有内容已审核完毕</p>
+        <div className="card-pad text-center py-20">
+          <p className="font-serif text-2xl text-ink-400 mb-2">队列已清空</p>
+          <p className="text-xs text-ink-400">所有内容都审核完了，去喝杯茶吧 🍵</p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100">
+        <ul className="card divide-y divide-paper-300 overflow-hidden">
           {items.map((item) => (
-            <IdeaListItem
-              key={item.id}
-              idea={item}
-            />
+            <IdeaListItem key={item.id} idea={item} />
           ))}
         </ul>
       )}

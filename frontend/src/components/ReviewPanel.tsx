@@ -21,6 +21,13 @@ interface Props {
   setError: (msg: string) => void;
 }
 
+const PLATFORM_LABEL: Record<string, string> = {
+  gzh: "公众号长文",
+  xhs: "小红书短文",
+  video: "视频脚本",
+  bilibili: "B 站视频",
+};
+
 export default function ReviewPanel({
   idea, isReviewing, isCompleted, isPublished,
   editGzh, setEditGzh, editXhs, setEditXhs,
@@ -69,126 +76,89 @@ export default function ReviewPanel({
       await approveReview(idea.id);
     });
 
+  const renderBlock = (platform: "gzh" | "xhs" | "video" | "bilibili", value: string, setter: (v: string) => void, extra?: React.ReactNode) => (
+    <div className="card-pad">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-serif text-base text-ink-900">{PLATFORM_LABEL[platform]}</h3>
+        <div className="flex gap-3 items-center">
+          {extra}
+          {isReviewing && (
+            <button
+              onClick={() => runAction(() => rejectReview(idea.id, platform === "video" ? "video" : platform))}
+              className="text-xs text-ink-400 hover:text-danger-700 transition"
+            >
+              重做
+            </button>
+          )}
+        </div>
+      </div>
+      <ContentEditor platform={platform} value={value} onChange={setter} />
+    </div>
+  );
+
   return (
-    <section className="mb-16 space-y-10">
-      <h2 className="text-xs text-gray-400 tracking-wider">门禁 2 · 内容审核</h2>
+    <section className="mb-16">
+      <p className="h-eyebrow mb-5">门禁 2 · 内容审核</p>
 
-      {idea.title_suggestions && idea.title_suggestions.length > 0 && (
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs text-gray-400">标题建议</h3>
-            {isReviewing && (
-              <button
-                onClick={handleOptimizeTitles}
-                disabled={optimizing}
-                className="text-xs text-gray-400 hover:text-gray-600 transition"
-              >
-                {optimizing ? "优化中..." : "优化标题"}
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(optTitles.length > 0 ? optTitles : idea.title_suggestions).map((t, i) => (
-              <span key={i} className="text-xs px-3 py-1.5 bg-[#f5f1ea] text-gray-600 rounded-full">
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {idea.content_gzh != null && (
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs text-gray-400">公众号长文</h3>
-            {isReviewing && (
-              <button
-                onClick={() => runAction(() => rejectReview(idea.id, "gzh"))}
-                className="text-xs text-gray-400 hover:text-red-500 transition"
-              >
-                重做
-              </button>
-            )}
-          </div>
-          <ContentEditor platform="gzh" value={editGzh} onChange={setEditGzh} />
-        </div>
-      )}
-
-      {idea.content_xhs != null && (
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs text-gray-400">小红书短文</h3>
-            {isReviewing && (
-              <button
-                onClick={() => runAction(() => rejectReview(idea.id, "xhs"))}
-                className="text-xs text-gray-400 hover:text-red-500 transition"
-              >
-                重做
-              </button>
-            )}
-          </div>
-          <ContentEditor platform="xhs" value={editXhs} onChange={setEditXhs} />
-        </div>
-      )}
-
-      {idea.content_video_script != null && (
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs text-gray-400">视频脚本</h3>
-            <div className="flex gap-3">
-              <button
-                onClick={handleTTS}
-                disabled={ttsGenerating}
-                className="text-xs text-gray-400 hover:text-gray-600 transition"
-              >
-                {ttsGenerating ? "生成中..." : ttsUrl ? "重新生成语音" : "生成语音"}
-              </button>
+      <div className="space-y-6">
+        {idea.title_suggestions && idea.title_suggestions.length > 0 && (
+          <div className="card-pad">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-serif text-base text-ink-900">标题建议</h3>
               {isReviewing && (
                 <button
-                  onClick={() => runAction(() => rejectReview(idea.id, "video"))}
-                  className="text-xs text-gray-400 hover:text-red-500 transition"
+                  onClick={handleOptimizeTitles}
+                  disabled={optimizing}
+                  className="text-xs text-accent-600 hover:text-accent-700 transition disabled:opacity-50"
                 >
-                  重做
+                  {optimizing ? "优化中…" : "✨ 让 AI 再优化"}
                 </button>
               )}
             </div>
+            <div className="flex flex-wrap gap-2">
+              {(optTitles.length > 0 ? optTitles : idea.title_suggestions).map((t, i) => (
+                <span key={i} className="pill-accent text-sm py-1 px-3">
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
-          <ContentEditor platform="video" value={editVideo} onChange={setEditVideo} />
-          {ttsUrl && (
-            <audio controls className="mt-3 w-full" src={ttsUrl}>
+        )}
+
+        {idea.content_gzh != null && renderBlock("gzh", editGzh, setEditGzh)}
+        {idea.content_xhs != null && renderBlock("xhs", editXhs, setEditXhs)}
+        {idea.content_video_script != null && renderBlock("video", editVideo, setEditVideo,
+          <button
+            onClick={handleTTS}
+            disabled={ttsGenerating}
+            className="text-xs text-accent-600 hover:text-accent-700 transition disabled:opacity-50"
+          >
+            {ttsGenerating ? "生成中…" : ttsUrl ? "重新生成语音" : "🎙 生成语音"}
+          </button>
+        )}
+        {idea.content_video_script != null && ttsUrl && (
+          <div className="card-pad py-3">
+            <audio controls className="w-full" src={ttsUrl}>
               您的浏览器不支持音频播放
             </audio>
-          )}
-        </div>
-      )}
-
-      {idea.content_bilibili != null && (
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs text-gray-400">B站视频</h3>
-            {isReviewing && (
-              <button
-                onClick={() => runAction(() => rejectReview(idea.id, "bilibili"))}
-                className="text-xs text-gray-400 hover:text-red-500 transition"
-              >
-                重做
-              </button>
-            )}
           </div>
-          <ContentEditor platform="bilibili" value={editBilibili} onChange={setEditBilibili} />
-        </div>
-      )}
+        )}
+        {idea.content_bilibili != null && renderBlock("bilibili", editBilibili, setEditBilibili)}
 
-      {isReviewing && (
-        <div>
-          <button
-            onClick={handleApprove}
-            className="text-sm text-gray-800 hover:text-black transition"
-          >
-            审核通过 ✓
-          </button>
-        </div>
-      )}
+        {isReviewing && (
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={handleApprove}
+              className="btn-primary"
+            >
+              ✓ 审核通过
+            </button>
+            <span className="text-xs text-ink-400 self-center">
+              通过后将进入「已完成」状态
+            </span>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

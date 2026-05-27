@@ -34,6 +34,39 @@ async def init_db():
         await _ensure_column(conn, "content_items", "scene", "VARCHAR")
         await _ensure_column(conn, "content_items", "enrichment_flags", "TEXT")
         await _ensure_column(conn, "content_items", "enrichment_data", "TEXT")
+        await _ensure_column(conn, "content_items", "gate1_research", "TEXT")
+        await _ensure_column(conn, "content_items", "style_id", "VARCHAR")
+        await _ensure_column(conn, "content_items", "reference_text", "TEXT")
+        # 旧版 user_config.json.style_samples 字符串迁移为首条默认风格
+        await _migrate_legacy_style_samples(conn)
+
+
+async def _migrate_legacy_style_samples(conn):
+    """把 user_config.json 里的 style_samples 字符串迁移成 StyleSample 默认条（幂等）。"""
+    try:
+        from app.core.config import _load_user_config
+        cfg = _load_user_config()
+        legacy = (cfg.get("style_samples") or "").strip()
+        if not legacy:
+            return
+        # 已有任意 style_samples 行 → 不再迁移
+        res = await conn.exec_driver_sql("SELECT COUNT(*) FROM style_samples")
+        count = res.fetchone()[0]
+        if count > 0:
+            return
+        import uuid as _u
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        new_id = str(_u.uuid4())
+        await conn.exec_driver_sql(
+            "INSERT INTO style_samples (id, name, content, is_default, sort_order, created_at, updated_at) "
+            "VALUES (?, ?, ?, 1, 0, ?, ?)",
+            (new_id, "默认风格（迁移）", legacy, now, now),
+        )
+    except Exception:
+        # 迁移失败不应阻断启动
+        import logging
+        logging.getLogger(__name__).exception("legacy style_samples migration failed")
 
 
 async def _ensure_column(conn, table: str, column: str, decl: str):

@@ -2,55 +2,64 @@ import { useNavigate } from "react-router-dom";
 import type { IdeaSummary } from "../api";
 import { STATUS_LABELS } from "../constants";
 
-const STATUS_COLORS: Record<string, string> = {
-  pending_review: "text-amber-600 bg-amber-50",
-  in_production:  "text-blue-600 bg-blue-50",
-  review:         "text-purple-600 bg-purple-50",
-  completed:      "text-green-600 bg-green-50",
-  published:      "text-gray-400 bg-gray-50",
-  rejected:       "text-red-500 bg-red-50",
-  production_failed: "text-red-600 bg-red-50",
+const STATUS_PILL: Record<string, string> = {
+  pending_review:    "pill-warn",
+  in_production:     "pill-accent",
+  review:            "pill-accent",
+  completed:         "pill-success",
+  published:         "pill",
+  rejected:          "pill-danger",
+  production_failed: "pill-danger",
 };
 
-type Props = {
-  idea: IdeaSummary;
-};
+type Props = { idea: IdeaSummary };
 
 export default function IdeaListItem({ idea }: Props) {
   const navigate = useNavigate();
-  const date = new Date(idea.created_at).toLocaleDateString("zh-CN");
+  const date = new Date(idea.created_at).toLocaleDateString("zh-CN", {
+    month: "2-digit", day: "2-digit",
+  });
   const scoreLabel =
     idea.gate1_score == null
       ? null
       : idea.gate1_score < 0
       ? "评估失败"
-      : `${idea.gate1_score}/100`;
+      : `${idea.gate1_score}`;
 
   const scoreColor =
-    idea.gate1_score != null && idea.gate1_score >= 80 ? "text-green-600" :
-    idea.gate1_score != null && idea.gate1_score >= 60 ? "text-gray-500"  :
-    idea.gate1_score != null ? "text-red-500" : "";
+    idea.gate1_score != null && idea.gate1_score >= 80 ? "text-success-700" :
+    idea.gate1_score != null && idea.gate1_score >= 60 ? "text-ink-700"  :
+    idea.gate1_score != null ? "text-danger-700" : "";
 
   return (
-    <li className="py-0">
+    <li>
       <button
         type="button"
         onClick={() => navigate(`/ideas/${idea.id}`)}
-        className="w-full text-left py-4 px-3 hover:bg-gray-50 rounded cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+        className="w-full text-left py-4 px-5 hover:bg-paper-200/60
+                   transition-colors group focus:outline-none
+                   focus-visible:bg-paper-200"
       >
         <div className="flex items-start justify-between gap-6 mb-2">
-          <p className="text-sm text-[#2c2c2c] leading-relaxed flex-1 line-clamp-2 group-hover:text-black">
+          <p className="text-[15px] text-ink-900 leading-relaxed flex-1 line-clamp-2
+                        font-serif group-hover:text-accent-700 transition-colors">
             {idea.idea_text}
           </p>
-          <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full ${STATUS_COLORS[idea.status] ?? "text-gray-400 bg-gray-50"}`}>
+          <span className={`${STATUS_PILL[idea.status] ?? "pill"} shrink-0`}>
             {STATUS_LABELS[idea.status] || idea.status}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-gray-400">
+        <div className="flex items-center gap-4 text-[11px] text-ink-400">
           <span>{date}</span>
           {scoreLabel && (
-            <span className={`font-mono ${scoreColor}`}>★ {scoreLabel}</span>
+            <span className={`font-mono ${scoreColor}`}>
+              ★ {scoreLabel}
+              <span className="text-ink-300">/100</span>
+            </span>
           )}
+          <span className="ml-auto text-ink-300 group-hover:text-accent-500 transition">
+            →
+          </span>
         </div>
       </button>
     </li>

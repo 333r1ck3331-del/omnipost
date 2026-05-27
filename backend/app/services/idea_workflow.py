@@ -70,6 +70,8 @@ async def list_ideas(
     status: str | None,
     limit: int,
     offset: int,
+    q: str | None = None,
+    scene: str | None = None,
 ) -> IdeaListResponse:
     if status and status not in VALID_STATUSES:
         raise HTTPException(
@@ -79,6 +81,13 @@ async def list_ideas(
     base = select(ContentItem)
     if status:
         base = base.where(ContentItem.status == status)
+    if scene:
+        base = base.where(ContentItem.scene == scene)
+    if q:
+        like = f"%{q.strip()}%"
+        base = base.where(
+            (ContentItem.idea_text.ilike(like)) | (ContentItem.final_content.ilike(like))
+        )
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     rows = (await db.execute(
@@ -101,21 +110,38 @@ async def review_queue(db: AsyncSession) -> list[IdeaSummary]:
 
 # ── Mutations ────────────────────────────────────────────────────────
 
-async def create_idea(db: AsyncSession, idea_text: str, scene: str | None = None) -> ContentItem:
+async def create_idea(
+    db: AsyncSession,
+    idea_text: str,
+    scene: str | None = None,
+    reference_text: str | None = None,
+) -> ContentItem:
     """Create an idea + run Gate 1 value judgment. Errors persist but don't 500."""
     # 场景白名单校验
     from app.services.prompt_loader import SCENES
     if scene and scene not in SCENES:
         raise HTTPException(400, f"未知场景: {scene!r}，可选: {', '.join(SCENES.keys())}")
-    item = ContentItem(idea_text=idea_text, scene=scene or None, status="pending_review")
+    ref = (reference_text or "").strip() or None
+    item = ContentItem(
+        idea_text=idea_text,
+        scene=scene or None,
+        reference_text=ref,
+        status="pending_review",
+    )
     db.add(item)
 
     try:
-        result = await run_value_judge(idea_text)
+        result = await run_value_judge(idea_text, reference_text=ref)
         item.gate1_score = result["score"]
         details = result.get("details")
         item.gate1_result = json.dumps(
             details if details is not None else {"error": "AI evaluation failed"},
+            ensure_ascii=False,
+        )
+        # 把 Tavily 原始搜索结果存下来，让前端可核对 AI 引用的依据
+        search_results = result.get("search_results") or []
+        item.gate1_research = json.dumps(
+            {"search_results": search_results, "search_used": result.get("search_used", False)},
             ensure_ascii=False,
         )
     except Exception:
@@ -161,6 +187,7 @@ async def produce_content(
     idea_id: str,
     types: list[str],
     enrichment_flags: dict[str, bool] | None = None,
+    style_id: str | None = None,
 ) -> ContentItem:
     """Run content production with optimistic locking.
 
@@ -172,10 +199,14 @@ async def produce_content(
     prev_status = item.status
 
     if prev_status not in PRODUCIBLE_STATES:
+        # SQLite 不保留 tzinfo，读回的 datetime 是 naive — 视为 UTC
+        started_at = item.production_started_at
+        if started_at is not None and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
         is_zombie = (
             prev_status == "in_production"
-            and item.production_started_at
-            and datetime.now(timezone.utc) - item.production_started_at > PRODUCTION_TIMEOUT
+            and started_at is not None
+            and datetime.now(timezone.utc) - started_at > PRODUCTION_TIMEOUT
         )
         if not is_zombie:
             raise HTTPException(409, f"状态 {prev_status!r} 不能生产内容，请先通过价值判断")
@@ -188,6 +219,7 @@ async def produce_content(
             status="in_production",
             selected_types=json.dumps(types, ensure_ascii=False),
             production_started_at=datetime.now(timezone.utc),
+            style_id=style_id if style_id is not None else item.style_id,
         )
     )
     if res.rowcount == 0:
@@ -217,6 +249,8 @@ async def produce_content(
         result = await run_content_production(
             item.idea_text, types, brief=item.brief or "", scene=item.scene,
             extra_research=extra_research,
+            reference_text=item.reference_text,
+            style_id=item.style_id,
         )
         for p in all_platforms():
             val = result.get(p.model_field)
@@ -239,7 +273,7 @@ async def produce_content(
                 if not draft:
                     continue
                 try:
-                    rev = await run_content_review(p.label, draft, idea=item.idea_text, scene=item.scene)
+                    rev = await run_content_review(p.label, draft, idea=item.idea_text, scene=item.scene, style_id=item.style_id)
                     if rev.get("changed") and rev.get("rewritten"):
                         setattr(item, p.model_field, rev["rewritten"])
                     review_log[p.key] = {
@@ -392,6 +426,8 @@ async def reject_review(
     try:
         result = await run_content_production(
             item.idea_text, [retry_type], brief=item.brief or "", scene=item.scene,
+            reference_text=item.reference_text,
+            style_id=item.style_id,
         )
         p = pf_get(retry_type)
         val = result.get(p.model_field)
@@ -477,10 +513,12 @@ def to_detail(item: ContentItem) -> IdeaDetail:
         id=item.id,
         idea_text=item.idea_text,
         scene=item.scene,
+        reference_text=getattr(item, "reference_text", None),
         status=item.status,
         gate1_score=item.gate1_score,
         gate1_result=_maybe_json(item.gate1_result),
         gate1_passed=item.gate1_passed,
+        gate1_research=_maybe_json(item.gate1_research),
         selected_types=_maybe_json(item.selected_types),
         title_suggestions=_maybe_json(item.title_suggestions),
         image_plans=_maybe_json(item.image_plans),
@@ -493,6 +531,7 @@ def to_detail(item: ContentItem) -> IdeaDetail:
         publish_url=item.publish_url,
         notes=item.notes,
         distribution_strategy=_maybe_json(item.distribution_strategy),
+        style_id=getattr(item, "style_id", None),
         created_at=item.created_at.isoformat() if item.created_at else "",
         updated_at=item.updated_at.isoformat() if item.updated_at else "",
         version=item.version,

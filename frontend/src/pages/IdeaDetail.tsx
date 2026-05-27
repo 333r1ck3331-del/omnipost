@@ -10,6 +10,7 @@ import Gate1Panel from "../components/Gate1Panel";
 import ProductionPanel from "../components/ProductionPanel";
 import ReviewPanel from "../components/ReviewPanel";
 import EnrichmentCard from "../components/EnrichmentCard";
+import ReferenceMaterial from "../components/ReferenceMaterial";
 import DistributionPanel from "../components/DistributionPanel";
 
 export default function IdeaDetail() {
@@ -54,7 +55,11 @@ export default function IdeaDetail() {
     }
   }, [id]);
 
+  // 防重入：用户重复点击/race condition 直接吞掉（视觉 disabled 状态留给后续 UI 改造）
+  const actionInFlight = useRef(false);
   const runAction = useCallback(async (fn: () => Promise<any>) => {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
     setError("");
     try {
       await fn();
@@ -64,6 +69,8 @@ export default function IdeaDetail() {
       setError(msg);
       setTimeout(() => setError((prev) => (prev === msg ? "" : prev)), 5000);
       await load();
+    } finally {
+      actionInFlight.current = false;
     }
   }, [load]);
 
@@ -107,8 +114,22 @@ export default function IdeaDetail() {
     };
   }, [idea?.status, load]);
 
-  if (loading) return <p className="text-gray-300 text-sm">加载中...</p>;
-  if (!idea) return <p className="text-red-500 text-sm">{error || "未找到"}</p>;
+  if (loading) return (
+    <div className="space-y-4">
+      <div className="skeleton h-4 w-24" />
+      <div className="skeleton h-8 w-3/4" />
+      <div className="skeleton h-32" />
+      <div className="skeleton h-64" />
+    </div>
+  );
+  if (!idea) return (
+    <div className="card-pad text-center text-danger-700">
+      <p className="font-serif text-lg">{error || "未找到"}</p>
+      <button onClick={() => navigate("/")} className="btn-secondary mt-4 text-xs">
+        ← 返回首页
+      </button>
+    </div>
+  );
 
   const isGate1Ready = idea.status === "pending_review";
   const isApproved = idea.status === "approved";
@@ -122,29 +143,36 @@ export default function IdeaDetail() {
     <div>
       <button
         onClick={() => navigate("/")}
-        className="text-xs text-gray-400 hover:text-gray-600 mb-10 transition"
+        className="btn-ghost text-xs mb-8 -ml-3"
       >
         ← 返回
       </button>
 
       <WarningBanner idea={idea} />
 
-      <h1 className="text-xl font-medium leading-relaxed mb-3 text-[#2c2c2c]">
-        {idea.idea_text}
-      </h1>
-      <div className="flex gap-3 text-xs text-gray-400 mb-16 items-center">
-        <span>{new Date(idea.created_at).toLocaleString("zh-CN")}</span>
-        <span>·</span>
-        <span>{STATUS_LABELS[idea.status] || idea.status}</span>
-        {idea.scene && (
-          <>
-            <span>·</span>
-            <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-              场景：{SCENE_LABELS[idea.scene] || idea.scene}
-            </span>
-          </>
+      {/* 头部 - 大标题 */}
+      <header className="mb-12">
+        <p className="h-eyebrow mb-3">
+          {STATUS_LABELS[idea.status] || idea.status}
+        </p>
+        <h1 className="font-serif text-2xl text-ink-900 leading-relaxed mb-4">
+          {idea.idea_text}
+        </h1>
+        {idea.reference_text && idea.reference_text.trim() && (
+          <ReferenceMaterial text={idea.reference_text} />
         )}
-      </div>
+        <div className="flex flex-wrap gap-3 text-xs text-ink-400 items-center">
+          <span>{new Date(idea.created_at).toLocaleString("zh-CN")}</span>
+          {idea.scene && (
+            <>
+              <span>·</span>
+              <span className="pill">
+                {SCENE_LABELS[idea.scene] || idea.scene}
+              </span>
+            </>
+          )}
+        </div>
+      </header>
 
       <Gate1Panel idea={idea} isGate1Ready={isGate1Ready} runAction={runAction} />
 
@@ -192,28 +220,44 @@ export default function IdeaDetail() {
 
       {isCompleted && idea.distribution_strategy && !isPublished && (
         <section className="mb-16">
-          <h2 className="text-xs text-gray-400 tracking-wider mb-6">发布</h2>
-          <button
-            onClick={() => runAction(() => markPublished(idea.id))}
-            className="text-sm text-gray-800 hover:text-black transition"
-          >
-            标记为已发布 →
-          </button>
+          <p className="h-eyebrow mb-5">发布</p>
+          <div className="card-pad flex items-center justify-between">
+            <div>
+              <p className="font-serif text-base text-ink-900 mb-1">内容已就绪</p>
+              <p className="text-xs text-ink-500">确认无误后标记为已发布</p>
+            </div>
+            <button
+              onClick={() => runAction(() => markPublished(idea.id))}
+              className="btn-primary"
+            >
+              ✓ 标记已发布
+            </button>
+          </div>
         </section>
       )}
 
       {isPublished && (
         <section className="mb-16">
-          <p className="text-sm text-gray-500">✓ 已发布</p>
+          <div className="card-pad text-center py-10 bg-success-50/40 border-success-500/30">
+            <p className="font-serif text-2xl text-success-700 mb-1">✓ 已发布</p>
+            <p className="text-xs text-ink-500">这篇内容已经走完全程</p>
+          </div>
         </section>
       )}
 
       {error && (
-        <div className="fixed bottom-6 right-6 bg-red-600 text-white text-xs px-4 py-3 rounded shadow-lg z-50 max-w-sm">
-          {error}
+        <div
+          role="alert"
+          className="fixed bottom-6 right-6 bg-paper-50 border border-danger-500/30
+                     shadow-lift rounded-lg px-4 py-3 z-50 max-w-sm fade-in
+                     flex items-start gap-3"
+        >
+          <span className="text-danger-500 font-serif text-lg leading-none mt-0.5">⚠</span>
+          <p className="text-sm text-ink-900 flex-1">{error}</p>
           <button
             onClick={() => setError("")}
-            className="ml-3 opacity-70 hover:opacity-100"
+            className="text-ink-400 hover:text-ink-900 transition text-sm"
+            aria-label="关闭"
           >
             ✕
           </button>

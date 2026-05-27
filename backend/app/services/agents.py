@@ -17,12 +17,18 @@ from app.core.platforms import all_platforms
 logger = logging.getLogger(__name__)
 
 
-async def run_value_judge(idea: str) -> dict:
+async def run_value_judge(idea: str, reference_text: str | None = None) -> dict:
     """Gate 1: Evaluate the idea's value.
 
     1. Search for competing content via Tavily
-    2. Inject search results into the AI prompt
+    2. Inject search results + optional reference text into the AI prompt
     3. AI scores the idea with real market context
+
+    Args:
+        idea: The user's content idea (short).
+        reference_text: Optional long-form background material (article, transcript,
+            previous AI response). When present, the LLM evaluates the idea in
+            light of this material instead of treating it purely as a one-liner.
 
     Returns:
         {"score": int, "details": dict, "token_usage": dict, "search_used": bool}
@@ -30,9 +36,11 @@ async def run_value_judge(idea: str) -> dict:
     # Step 1: Search for competitors
     search_text = None
     search_used = False
+    raw_results: list[dict] = []
     try:
         results = await search_competitors(idea, max_results=5)
         if results:
+            raw_results = results
             search_text = format_search_results(results)
             search_used = True
             logger.info("Tavily search: %d results", len(results))
@@ -41,8 +49,10 @@ async def run_value_judge(idea: str) -> dict:
     except Exception:
         logger.exception("Tavily search unexpected error")
 
-    # Step 2: Build prompt with search results
-    system, user = assemble_value_judge_prompt(idea, search_results=search_text)
+    # Step 2: Build prompt with search results + reference
+    system, user = assemble_value_judge_prompt(
+        idea, search_results=search_text, reference_text=reference_text,
+    )
 
     # Step 3: Call LLM — use the dedicated value_judge.md as system prompt
     result = await call_llm(user, system_prompt=system)
@@ -69,6 +79,7 @@ async def run_value_judge(idea: str) -> dict:
         "token_usage": result.get("usage"),
         "latency_ms": result.get("latency_ms"),
         "search_used": search_used,
+        "search_results": raw_results,
     }
 
 
@@ -78,12 +89,19 @@ async def run_content_production(
     brief: str = "",
     scene: str | None = None,
     extra_research: str = "",
+    reference_text: str | None = None,
+    style_id: str | None = None,
 ) -> dict:
     """Produce content: full package including gzh, xhs, video script, titles.
 
     Before calling the LLM, searches for related content via Tavily and
     crawls any URLs found in the user's brief. Results are injected as
     a research brief into the production prompt.
+
+    Args:
+        reference_text: Optional long-form background material the user pasted
+            in alongside the idea. Injected into the prompt so the LLM can
+            elaborate around it instead of generating from a one-liner alone.
 
     Returns:
         {"content_gzh": str, "content_xhs": str, "content_video_script": str,
@@ -129,6 +147,8 @@ async def run_content_production(
 
     prompt = assemble_content_production_prompt(
         idea, selected_types, brief=brief, research_brief=research_brief, scene=scene,
+        reference_text=reference_text,
+        style_id=style_id,
     )
     system = "你是中文资深内容研究员。只输出有效 JSON，不要任何额外文字。"
 
@@ -383,6 +403,7 @@ async def run_content_review(
     draft: str,
     idea: str = "",
     scene: str | None = None,
+    style_id: str | None = None,
 ) -> dict:
     """Self-review pass: 主编挑刺并重写一段内容。
 
@@ -404,7 +425,7 @@ async def run_content_review(
         return {"issues": [], "rewritten": draft, "changed": False, "token_usage": None, "error": "empty_draft"}
 
     system = load_reviewer_prompt()
-    style_block = load_style_samples()
+    style_block = load_style_samples(style_id)
     from app.services.prompt_loader import load_scene_prompt
     scene_block = load_scene_prompt(scene)
 
