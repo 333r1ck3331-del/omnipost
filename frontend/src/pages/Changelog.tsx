@@ -155,6 +155,15 @@ export default function Changelog() {
               内容送到嘴边——只剩点"发布"那一下。
             </span>
           </li>
+          <li className="text-sm text-ink-700 leading-relaxed">
+            <span className="font-serif text-ink-900">🧠 风格库进化成 Agent Soul</span>
+            <span className="block text-ink-500 mt-1 pl-4 border-l border-paper-300">
+              现在的风格库是把一段文本整段塞进 prompt——粗暴、一次性、AI
+              抓不住重点。下一步把它做成账号的"灵魂档案"：可以上传一整份策划文档 /
+              人设蓝图 / 历史范文，按写作阶段分步检索、按需调用，
+              而不是一次性把一堆要求糊给模型。让 AI 真的"了解自己在写什么"。
+            </span>
+          </li>
         </ul>
         <p className="text-xs text-ink-400 italic leading-relaxed pl-4 border-l-2 border-accent-300/40 py-2">
           以上是想做的方向，不是承诺。会按手感、按需要、按精力慢慢来。
