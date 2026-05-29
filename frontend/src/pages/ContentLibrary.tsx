@@ -426,12 +426,14 @@ function EntryRow({ entry, checked, onCheck, onChange, onDelete }: RowProps) {
           className="w-full bg-transparent focus:bg-white focus:border-gray-300 border border-transparent rounded px-1 py-0.5"
         />
       </td>
-      <td className="px-3 py-2">
-        <input
+      <td className="px-3 py-2 align-top min-w-[240px]">
+        <textarea
           value={draft.topic_direction || ""}
           onChange={(e) => setDraft({ ...draft, topic_direction: e.target.value })}
           onBlur={() => commit("topic_direction", draft.topic_direction || null)}
-          className="w-full bg-transparent focus:bg-white focus:border-gray-300 border border-transparent rounded px-1 py-0.5"
+          rows={3}
+          placeholder="选题方向、角度、想法、参考……可写多行"
+          className="w-full bg-transparent focus:bg-white focus:border-gray-300 border border-transparent rounded px-1 py-0.5 resize-y leading-snug placeholder:text-ink-300"
         />
       </td>
       <td className="px-3 py-2">
@@ -461,12 +463,14 @@ function EntryRow({ entry, checked, onCheck, onChange, onDelete }: RowProps) {
           <option value="published">{STATUS_LABEL.published}</option>
         </select>
       </td>
-      <td className="px-3 py-2">
-        <input
+      <td className="px-3 py-2 align-top min-w-[240px]">
+        <textarea
           value={draft.notes || ""}
           onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
           onBlur={() => commit("notes", draft.notes || null)}
-          className="w-full bg-transparent focus:bg-white focus:border-gray-300 border border-transparent rounded px-1 py-0.5"
+          rows={3}
+          placeholder="提纲、金句、参考链接、备忘……可写多行"
+          className="w-full bg-transparent focus:bg-white focus:border-gray-300 border border-transparent rounded px-1 py-0.5 resize-y leading-snug placeholder:text-ink-300"
         />
       </td>
       <td className="px-3 py-2 text-right">
